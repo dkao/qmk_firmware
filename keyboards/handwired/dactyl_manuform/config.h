@@ -44,3 +44,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /* Enables This makes it easier for fast typists to use dual-function keys */
 #define PERMISSIVE_HOLD
+//#define TAPPING_TERM 500
+#define TAPPING_TERM 200
+//#define IGNORE_MOD_TAP_INTERRUPT
+//#define RETRO_TAPPING
+#define USB_POLLING_INTERVAL_MS 1
+
+//#define LAYER_STATE_32BIT
