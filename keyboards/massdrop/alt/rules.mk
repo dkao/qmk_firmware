@@ -25,7 +25,9 @@ RAW_ENABLE = no             # Raw device
 AUTO_SHIFT_ENABLE = no      # Auto Shift
 
 # Custom RGB matrix handling
-RGB_MATRIX_ENABLE = yes
-RGB_MATRIX_DRIVER = custom
+RGB_MATRIX_ENABLE = no
+# RGB_MATRIX_ENABLE = yes
+# RGB_MATRIX_DRIVER = custom
+DEBOUNCE_TYPE?= sym_defer_pk
 
 LAYOUTS = 65_ansi_blocker
