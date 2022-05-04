@@ -43,6 +43,9 @@ int  arLowA[SCROLLER_AR_SIZE];
 int  arHighA[SCROLLER_AR_SIZE];
 int  arLowB[SCROLLER_AR_SIZE];
 int  arHighB[SCROLLER_AR_SIZE];
+#ifdef OLD_STYLE_SCROLL
+int scrollThreshold;
+#endif
 
 /* Setup function for the scroll wheel. Initializes
    the relevant variables. */
@@ -50,25 +53,130 @@ void opt_encoder_init(void) {
     state            = HIHI;
     lohif            = false;
     hilof            = false;
-    lowA             = 1023;
-    highA            = 0;
+    lowA             = 50;
+    highA            = 150;
     cLowA            = false;
     cHighA           = false;
     lowIndexA        = 0;
     highIndexA       = 0;
     lowOverflowA     = false;
     highOverflowA    = false;
-    lowB             = 1023;
-    highB            = 0;
+    lowB             = 50;
+    highB            = 150;
     cLowB            = false;
     cHighB           = false;
     lowIndexB        = 0;
     highIndexB       = 0;
     lowOverflowB     = false;
     highOverflowB    = false;
-    scrollThresholdA = 0;
-    scrollThresholdB = 0;
+    scrollThresholdA = 83;
+    scrollThresholdB = 83;
+#ifdef OLD_STYLE_SCROLL
+    scrollThreshold  = 0;
+    lowA             = 50;
+    highA            = 150;
+    lowB             = 50;
+    highB            = 150;
+    calculateThreshold(lowA, lowB);
+#endif
 }
+
+#ifdef OLD_STYLE_SCROLL
+int opt_encoder_handler(int curA, int curB) {
+  calculateThreshold(curA, curB);
+
+  bool LO = false;
+  bool HI = true;
+  bool sA, sB;
+  int ret = 0;
+
+  if (curA < scrollThreshold)
+    sA = LO;
+  else
+    sA = HI;
+
+  if (curB < scrollThreshold)
+    sB = LO;
+  else
+    sB = HI;
+
+  if (state == HIHI) {
+    if (sA == LO && sB == HI) {
+      state = LOHI;
+      if (hilof) {
+        ret = 1;
+        hilof = false;
+      }
+    } else if (sA == HI && sB == LO) {
+      state = HILO;
+      if (lohif) {
+        ret = -1;
+        lohif = false;
+      }
+    }
+  }
+
+  else if (state == HILO) {
+    if (sA == HI && sB == HI) {
+      state = HIHI;
+      hilof = true;
+      lohif = false;
+    } else if (sA == LO && sB == LO) {
+      state = LOLO;
+      hilof = true;
+      lohif = false;
+    }
+  }
+
+  else if (state == LOLO) {
+    if (sA == HI && sB == LO) {
+      state = HILO;
+      if (lohif) {
+        ret = 1;
+        lohif = false;
+      }
+    } else if (sA == LO && sB == HI) {
+      state = LOHI;
+      if (hilof) {
+        ret = -1;
+        hilof = false;
+      }
+    }
+  }
+
+  else { // state must be LOHI
+    if (sA == HI && sB == HI) {
+      state = HIHI;
+      lohif = true;
+      hilof = false;
+    } else if (sA == LO && sB == LO) {
+      state = LOLO;
+      lohif = true;
+      hilof = false;
+    }
+  }
+
+  return ret;
+}
+
+void calculateThreshold(int curA, int curB) {
+  if (curA < lowA)
+    lowA = curA;
+  else if (curA > highA)
+    highA = curA;
+
+  if (curB < lowB)
+    lowB = curB;
+  else if (curB > highB)
+    highB = curB;
+
+  int avgA = ((highA - lowA) / 3) + lowA;
+  int avgB = ((highB - lowB) / 3) + lowB;
+
+  scrollThreshold = (avgA + avgB) / 2;
+}
+
+#else
 
 int opt_encoder_handler(int curA, int curB) {
     if (lowOverflowA == false || highOverflowA == false) calculateThresholdA(curA);
@@ -237,3 +345,4 @@ void incrementIndex(int* index, bool* ovflw) {
         *ovflw = true;
     }
 }
+#endif
