@@ -26,6 +26,8 @@
 #    define SCROLL_THRESH_RANGE_LIM 10
 #endif
 
+//#define OLD_STYLE_SCROLL
+
 enum State { HIHI, HILO, LOLO, LOHI };
 
 extern enum State state;
@@ -56,11 +58,16 @@ extern int  arHighA[SCROLLER_AR_SIZE];
 extern int  arLowB[SCROLLER_AR_SIZE];
 extern int  arHighB[SCROLLER_AR_SIZE];
 
+#ifdef OLD_STYLE_SCROLL
+extern int  scrollThreshold;
+void calculateThreshold(int curA, int curB);
+#else
 void calculateThresholdA(int curA);
 void calculateThresholdB(int curB);
 int  calculateThreshold(int cur, int* low, int* high, bool* cLow, bool* cHigh, int arLow[], int arHigh[], int* lowIndex, int* highIndex, bool* lowOverflow, bool* highOverflow);
 int  thresholdEquation(int lo, int hi);
 void incrementIndex(int* index, bool* ovflw);
+#endif
 
 void opt_encoder_init(void);
 int  opt_encoder_handler(int curA, int curB);

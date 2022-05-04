@@ -1,2 +1,3 @@
 # Bootloader selection
-BOOTLOADER = caterina
+# BOOTLOADER = caterina
+BOOTLOADER = qmk-dfu
