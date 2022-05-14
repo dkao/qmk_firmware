@@ -114,6 +114,80 @@ const pointing_device_driver_t pointing_device_driver = {
 #        define CIRQUE_PINNACLE_TOUCH_DEBOUNCE (CIRQUE_PINNACLE_TAPPING_TERM * 8)
 #    endif
 
+#ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+typedef struct {
+    int8_t dx;
+    int8_t dy;
+    bool   valid;
+} cursor_glide_t;
+
+typedef struct {
+    float    coef;
+    float    v0;
+    int16_t  x;
+    int16_t  y;
+    uint16_t z;
+    uint16_t timer;
+    uint16_t interval;
+    uint16_t counter;
+    int8_t   dx0;
+    int8_t   dy0;
+} cursor_glide_context_t;
+
+static cursor_glide_context_t glide;
+
+cursor_glide_t cursor_glide(void) {
+    cursor_glide_t report;
+    float   p;
+    int32_t x, y;
+
+    glide.counter++;
+    // calculate current position
+    p            = glide.v0 * glide.counter - glide.coef * glide.counter * glide.counter / 2;
+    x            = (int16_t)(p * glide.dx0 / glide.v0);
+    y            = (int16_t)(p * glide.dy0 / glide.v0);
+    report.dx    = (int8_t)(x - glide.x);
+    report.dy    = (int8_t)(y - glide.y);
+    report.valid = true;
+    if (report.dx <= 1 && report.dx >= -1 && report.dy <= 1 && report.dy >= -1) {
+        glide.dx0 = 0;
+        glide.dy0 = 0;
+    }
+    glide.x     = x;
+    glide.y     = y;
+    glide.timer = timer_read();
+
+    return report;
+}
+
+cursor_glide_t cursor_glide_check(void) {
+    cursor_glide_t invalid_report = {0, 0, false};
+    if (glide.z || (glide.dx0 == 0 && glide.dy0 == 0) || timer_elapsed(glide.timer) < glide.interval)
+        return invalid_report;
+    else
+        return cursor_glide();
+}
+
+cursor_glide_t cursor_glide_start(void) {
+    glide.coef = 0.4; // good enough default
+    glide.interval = 10; // hardcode for 100sps
+    glide.timer = timer_read();
+    glide.counter = 0;
+    glide.v0 = hypotf(glide.dx0, glide.dy0);
+    glide.x = 0;
+    glide.y = 0;
+    glide.z = 0;
+
+    return cursor_glide();
+}
+
+void cursor_glide_update(int8_t dx, int8_t dy, uint16_t z) {
+    glide.dx0 = dx;
+    glide.dy0 = dy;
+    glide.z = z;
+}
+#endif
+
 report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     pinnacle_data_t touchData;
     static uint16_t x = 0, y = 0;
@@ -122,46 +196,69 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     static uint16_t mouse_timer = 0;
     static bool     is_z_down = false;
 #endif
+#ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+    cursor_glide_t glide = cursor_glide_check();
+#endif
 
 #ifndef POINTING_DEVICE_MOTION_PIN
-    if (!cirque_pinnacle_data_ready()) return mouse_report;
+    if (!cirque_pinnacle_data_ready()) {
+#ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+        if (!glide.valid)
 #endif
+            goto exit;
+    } else
+#endif
+    {
+        // Always read data and clear status flags if available
+        touchData = cirque_pinnacle_read_data();
+        cirque_pinnacle_scale_data(&touchData, cirque_pinnacle_get_scale(), cirque_pinnacle_get_scale()); // Scale coordinates to arbitrary X, Y resolution
 
-    touchData = cirque_pinnacle_read_data();
-    cirque_pinnacle_scale_data(&touchData, cirque_pinnacle_get_scale(), cirque_pinnacle_get_scale()); // Scale coordinates to arbitrary X, Y resolution
-
-    if (x && y && touchData.xValue && touchData.yValue) {
-        report_x = (int8_t)(touchData.xValue - x);
-        report_y = (int8_t)(touchData.yValue - y);
-    }
-    x = touchData.xValue;
-    y = touchData.yValue;
-
-#ifndef CIRQUE_PINNACLE_DISABLE_TAP
-    if ((bool)touchData.zValue != is_z_down) {
-        is_z_down = (bool)touchData.zValue;
-        if (!touchData.zValue) {
-            if (timer_elapsed(mouse_timer) < CIRQUE_PINNACLE_TAPPING_TERM && mouse_timer != 0) {
-                mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, true, POINTING_DEVICE_BUTTON1);
-                pointing_device_set_report(mouse_report);
-                pointing_device_send();
-#    if TAP_CODE_DELAY > 0
-                wait_ms(TAP_CODE_DELAY);
-#    endif
-                mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, false, POINTING_DEVICE_BUTTON1);
-                pointing_device_set_report(mouse_report);
-                pointing_device_send();
-            }
+        if (x && y && touchData.xValue && touchData.yValue) {
+            report_x = (int8_t)(touchData.xValue - x);
+            report_y = (int8_t)(touchData.yValue - y);
         }
-        mouse_timer = timer_read();
+        x = touchData.xValue;
+        y = touchData.yValue;
+
+#    ifndef CIRQUE_PINNACLE_DISABLE_TAP
+        if ((bool)touchData.zValue != is_z_down) {
+            is_z_down = (bool)touchData.zValue;
+            if (!touchData.zValue) {
+                if (timer_elapsed(mouse_timer) < CIRQUE_PINNACLE_TAPPING_TERM && mouse_timer != 0) {
+                    mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, true, POINTING_DEVICE_BUTTON1);
+                    pointing_device_set_report(mouse_report);
+                    pointing_device_send();
+#        if TAP_CODE_DELAY > 0
+                    wait_ms(TAP_CODE_DELAY);
+#        endif
+                    mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, false, POINTING_DEVICE_BUTTON1);
+                    pointing_device_set_report(mouse_report);
+                    pointing_device_send();
+                }
+            }
+            mouse_timer = timer_read();
+        }
+        if (timer_elapsed(mouse_timer) > (CIRQUE_PINNACLE_TOUCH_DEBOUNCE)) {
+            mouse_timer = 0;
+        }
+#    endif
+#    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+        if (touchData.touchDown) {
+            cursor_glide_update(report_x, report_y, touchData.zValue);
+        } else if (!glide.valid) {
+            glide = cursor_glide_start();
+        }
     }
-    if (timer_elapsed(mouse_timer) > (CIRQUE_PINNACLE_TOUCH_DEBOUNCE)) {
-        mouse_timer = 0;
+
+    if (glide.valid) {
+        report_x = glide.dx;
+        report_y = glide.dy;
+#    endif
     }
-#endif
     mouse_report.x = report_x;
     mouse_report.y = report_y;
 
+exit:
     return mouse_report;
 }
 
