@@ -116,9 +116,12 @@ const pointing_device_driver_t pointing_device_driver = {
 
 report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     pinnacle_data_t touchData;
-    static uint16_t x = 0, y = 0, mouse_timer = 0;
+    static uint16_t x = 0, y = 0;
     int8_t          report_x = 0, report_y = 0;
+#ifndef CIRQUE_PINNACLE_DISABLE_TAP
+    static uint16_t mouse_timer = 0;
     static bool     is_z_down = false;
+#endif
 
 #ifndef POINTING_DEVICE_MOTION_PIN
     if (!cirque_pinnacle_data_ready()) return mouse_report;
@@ -134,6 +137,7 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     x = touchData.xValue;
     y = touchData.yValue;
 
+#ifndef CIRQUE_PINNACLE_DISABLE_TAP
     if ((bool)touchData.zValue != is_z_down) {
         is_z_down = (bool)touchData.zValue;
         if (!touchData.zValue) {
@@ -154,6 +158,7 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     if (timer_elapsed(mouse_timer) > (CIRQUE_PINNACLE_TOUCH_DEBOUNCE)) {
         mouse_timer = 0;
     }
+#endif
     mouse_report.x = report_x;
     mouse_report.y = report_y;
 
