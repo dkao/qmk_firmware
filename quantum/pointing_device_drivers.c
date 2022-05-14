@@ -97,24 +97,57 @@ const pointing_device_driver_t pointing_device_driver = {
 };
 // clang-format on
 #elif defined(POINTING_DEVICE_DRIVER_cirque_pinnacle_i2c) || defined(POINTING_DEVICE_DRIVER_cirque_pinnacle_spi)
-#    ifndef CIRQUE_PINNACLE_TAPPING_TERM
-#        ifdef TAPPING_TERM_PER_KEY
-#            include "action.h"
-#            include "action_tapping.h"
-#            define CIRQUE_PINNACLE_TAPPING_TERM get_tapping_term(KC_BTN1, &(keyrecord_t){})
-#        else
-#            ifdef TAPPING_TERM
-#                define CIRQUE_PINNACLE_TAPPING_TERM TAPPING_TERM
+#    ifndef CIRQUE_PINNACLE_DISABLE_TAP
+#        ifndef CIRQUE_PINNACLE_TAPPING_TERM
+#            ifdef TAPPING_TERM_PER_KEY
+#                include "action.h"
+#                include "action_tapping.h"
+#                define CIRQUE_PINNACLE_TAPPING_TERM get_tapping_term(KC_BTN1, &(keyrecord_t){})
 #            else
-#                define CIRQUE_PINNACLE_TAPPING_TERM 200
+#                ifdef TAPPING_TERM
+#                    define CIRQUE_PINNACLE_TAPPING_TERM TAPPING_TERM
+#                else
+#                    define CIRQUE_PINNACLE_TAPPING_TERM 200
+#                endif
 #            endif
 #        endif
-#    endif
-#    ifndef CIRQUE_PINNACLE_TOUCH_DEBOUNCE
-#        define CIRQUE_PINNACLE_TOUCH_DEBOUNCE (CIRQUE_PINNACLE_TAPPING_TERM * 8)
+#        ifndef CIRQUE_PINNACLE_TOUCH_DEBOUNCE
+#            define CIRQUE_PINNACLE_TOUCH_DEBOUNCE (CIRQUE_PINNACLE_TAPPING_TERM * 8)
+#        endif
+typedef struct {
+    uint16_t timer;
+    bool     z;
+} trackpad_tap_context_t;
+
+static trackpad_tap_context_t tap;
+
+report_mouse_t trackpad_tap(report_mouse_t mouse_report, pinnacle_data_t touchData) {
+    if ((bool)touchData.zValue != tap.z) {
+        tap.z = (bool)touchData.zValue;
+        if (!touchData.zValue) {
+            if (timer_elapsed(tap.timer) < CIRQUE_PINNACLE_TAPPING_TERM && tap.timer != 0) {
+                mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, true, POINTING_DEVICE_BUTTON1);
+                pointing_device_set_report(mouse_report);
+                pointing_device_send();
+#        if TAP_CODE_DELAY > 0
+                wait_ms(TAP_CODE_DELAY);
+#        endif
+                mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, false, POINTING_DEVICE_BUTTON1);
+                pointing_device_set_report(mouse_report);
+                pointing_device_send();
+            }
+        }
+        tap.timer = timer_read();
+    }
+    if (timer_elapsed(tap.timer) > (CIRQUE_PINNACLE_TOUCH_DEBOUNCE)) {
+        tap.timer = 0;
+    }
+
+    return mouse_report;
+}
 #    endif
 
-#ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+#    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
 typedef struct {
     int8_t dx;
     int8_t dy;
@@ -186,28 +219,24 @@ void cursor_glide_update(int8_t dx, int8_t dy, uint16_t z) {
     glide.dy0 = dy;
     glide.z = z;
 }
-#endif
+#    endif
 
 report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     pinnacle_data_t touchData;
     static uint16_t x = 0, y = 0;
     int8_t          report_x = 0, report_y = 0;
-#ifndef CIRQUE_PINNACLE_DISABLE_TAP
-    static uint16_t mouse_timer = 0;
-    static bool     is_z_down = false;
-#endif
-#ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+#    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
     cursor_glide_t glide = cursor_glide_check();
-#endif
+#    endif
 
-#ifndef POINTING_DEVICE_MOTION_PIN
+#    ifndef POINTING_DEVICE_MOTION_PIN
     if (!cirque_pinnacle_data_ready()) {
-#ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+#        ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
         if (!glide.valid)
-#endif
+#        endif
             goto exit;
     } else
-#endif
+#    endif
     {
         // Always read data and clear status flags if available
         touchData = cirque_pinnacle_read_data();
@@ -221,26 +250,7 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
         y = touchData.yValue;
 
 #    ifndef CIRQUE_PINNACLE_DISABLE_TAP
-        if ((bool)touchData.zValue != is_z_down) {
-            is_z_down = (bool)touchData.zValue;
-            if (!touchData.zValue) {
-                if (timer_elapsed(mouse_timer) < CIRQUE_PINNACLE_TAPPING_TERM && mouse_timer != 0) {
-                    mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, true, POINTING_DEVICE_BUTTON1);
-                    pointing_device_set_report(mouse_report);
-                    pointing_device_send();
-#        if TAP_CODE_DELAY > 0
-                    wait_ms(TAP_CODE_DELAY);
-#        endif
-                    mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, false, POINTING_DEVICE_BUTTON1);
-                    pointing_device_set_report(mouse_report);
-                    pointing_device_send();
-                }
-            }
-            mouse_timer = timer_read();
-        }
-        if (timer_elapsed(mouse_timer) > (CIRQUE_PINNACLE_TOUCH_DEBOUNCE)) {
-            mouse_timer = 0;
-        }
+        mouse_report = trackpad_tap(mouse_report, touchData);
 #    endif
 #    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
         if (touchData.touchDown) {
