@@ -114,7 +114,12 @@ const pointing_device_driver_t pointing_device_driver = {
 #        ifndef CIRQUE_PINNACLE_TOUCH_DEBOUNCE
 #            define CIRQUE_PINNACLE_TOUCH_DEBOUNCE (CIRQUE_PINNACLE_TAPPING_TERM * 8)
 #        endif
+#        ifndef CIRQUE_PINNACLE_TAP_THRESHOLD
+#           define CIRQUE_PINNACLE_TAP_THRESHOLD 120
+#        endif
 typedef struct {
+    uint16_t x;
+    uint16_t y;
     uint16_t timer;
     bool     z;
 } trackpad_tap_context_t;
@@ -125,7 +130,8 @@ report_mouse_t trackpad_tap(report_mouse_t mouse_report, pinnacle_data_t touchDa
     if ((bool)touchData.zValue != tap.z) {
         tap.z = (bool)touchData.zValue;
         if (!touchData.zValue) {
-            if (timer_elapsed(tap.timer) < CIRQUE_PINNACLE_TAPPING_TERM && tap.timer != 0) {
+#        define ABS(a) ((a) > 0 ? (a) : -(a))
+            if (timer_elapsed(tap.timer) < CIRQUE_PINNACLE_TAPPING_TERM && tap.timer != 0 && ABS((int8_t)(touchData.xValue - tap.x)) <= CIRQUE_PINNACLE_TAP_THRESHOLD && ABS((int8_t)(touchData.yValue - tap.y)) <= CIRQUE_PINNACLE_TAP_THRESHOLD) {
                 mouse_report.buttons = pointing_device_handle_buttons(mouse_report.buttons, true, POINTING_DEVICE_BUTTON1);
                 pointing_device_set_report(mouse_report);
                 pointing_device_send();
@@ -138,6 +144,8 @@ report_mouse_t trackpad_tap(report_mouse_t mouse_report, pinnacle_data_t touchDa
             }
         }
         tap.timer = timer_read();
+        tap.x = touchData.xValue;
+        tap.y = touchData.yValue;
     }
     if (timer_elapsed(tap.timer) > (CIRQUE_PINNACLE_TOUCH_DEBOUNCE)) {
         tap.timer = 0;
