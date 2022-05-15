@@ -221,12 +221,138 @@ void cursor_glide_update(int8_t dx, int8_t dy, uint16_t z) {
 }
 #    endif
 
+#    ifdef CIRQUE_PINNACLE_ENABLE_CIRCULAR_SCROLL
+#        ifndef CIRQUE_PINNACLE_SCROLL_RING_PERCENTAGE
+#            define CIRQUE_PINNACLE_SCROLL_RING_PERCENTAGE 33
+#        endif
+#        ifndef CIRQUE_PINNACLE_SCROLL_MOVEMENT_PERCENTAGE
+#            define CIRQUE_PINNACLE_SCROLL_MOVEMENT_PERCENTAGE 6
+#        endif
+#        ifndef CIRQUE_PINNACLE_SCROLL_MOVEMENT_RATIO
+#            define CIRQUE_PINNACLE_SCROLL_MOVEMENT_RATIO 1.2
+#        endif
+#        ifndef CIRQUE_PINNACLE_SCROLL_WHEEL_CLICKS
+#            define CIRQUE_PINNACLE_SCROLL_WHEEL_CLICKS 9
+#        endif
+
+typedef enum {
+    SCROLL_UNINITIALIZED,
+    SCROLL_DETECTING,
+    SCROLL_VALID,
+    NOT_SCROLL,
+} circular_scroll_status_t;
+
+typedef struct {
+    int8_t v;
+    int8_t h;
+    bool   suppress_touch;
+} circular_scroll_t;
+
+typedef struct {
+    float                    mag;
+    int16_t                  x;
+    int16_t                  y;
+    uint16_t                 z;
+    circular_scroll_status_t state;
+    bool                     axis;
+} circular_scroll_context_t;
+
+static circular_scroll_context_t scroll;
+
+circular_scroll_t circular_scroll(pinnacle_data_t touchData) {
+    circular_scroll_t report = {0, 0, false};
+    int16_t           x, y;
+    uint16_t          center = cirque_pinnacle_get_scale() / 2;
+    int8_t            wheel_clicks;
+    float             mag, ang, scalar_projection, scalar_rejection, parallel_movement, perpendicular_movement;
+    int32_t           dot, det;
+
+    if (touchData.zValue) {
+        // place origin at center of trackpad
+        x = (int16_t)(touchData.xValue - center);
+        y = (int16_t)(touchData.yValue - center);
+
+        // check if first touch
+        if (!scroll.z) {
+            report.suppress_touch = false;
+            // check if touch falls within outer ring
+            mag = hypotf(x, y);
+            if (mag / center >= (100.0 - CIRQUE_PINNACLE_SCROLL_RING_PERCENTAGE) / 100.0) {
+                scroll.state = SCROLL_DETECTING;
+                scroll.x     = x;
+                scroll.y     = y;
+                scroll.mag   = mag;
+                // decide scroll axis:
+                //   vertical if started from righ half
+                //   horizontal if started from left half
+                // reverse for left hand? TODO?
+#        if defined(POINTING_DEVICE_ROTATION_90)
+                scroll.axis = y < 0;
+#        elif defined(POINTING_DEVICE_ROTATION_180)
+                scroll.axis = x > 0;
+#        elif defined(POINTING_DEVICE_ROTATION_270)
+                scroll.axis = y > 0;
+#        else
+                scroll.axis = x < 0;
+#        endif
+            }
+        } else if (scroll.state == SCROLL_DETECTING) {
+            report.suppress_touch = true;
+            // already detecting scroll, check movement from touchdown location
+            mag = hypotf(x - scroll.x, y - scroll.y);
+            if (mag >= CIRQUE_PINNACLE_SCROLL_MOVEMENT_PERCENTAGE / 100.0 * center) {
+                // check ratio of movement towards center vs. along perimeter
+                // this distinguishes circular scroll from swipes that start from edge of trackpad
+                dot                    = (int32_t)scroll.x * (int32_t)x + (int32_t)scroll.y * (int32_t)y;
+                det                    = (int32_t)scroll.x * (int32_t)y - (int32_t)scroll.y * (int32_t)x;
+                scalar_projection      = dot / scroll.mag;
+                scalar_rejection       = det / scroll.mag;
+                parallel_movement      = fabs(scroll.mag - fabs(scalar_projection));
+                perpendicular_movement = fabs(scalar_rejection);
+                if (parallel_movement * CIRQUE_PINNACLE_SCROLL_MOVEMENT_RATIO > perpendicular_movement) {
+                    // not a scroll, release coordinates
+                    report.suppress_touch = false;
+                    scroll.state          = NOT_SCROLL;
+                } else {
+                    // scroll detected
+                    scroll.state = SCROLL_VALID;
+                }
+            }
+        }
+        if (scroll.state == SCROLL_VALID) {
+            report.suppress_touch = true;
+            dot                   = (int32_t)scroll.x * (int32_t)x + (int32_t)scroll.y * (int32_t)y;
+            det                   = (int32_t)scroll.x * (int32_t)y - (int32_t)scroll.y * (int32_t)x;
+            ang                   = atan2f(det, dot);
+            wheel_clicks          = roundf(ang * CIRQUE_PINNACLE_SCROLL_WHEEL_CLICKS / M_PI);
+            if (wheel_clicks >= 1 || wheel_clicks <= -1) {
+                if (scroll.axis == 0) {
+                    report.v = -wheel_clicks;
+                } else {
+                    report.h = wheel_clicks;
+                }
+                scroll.x = x;
+                scroll.y = y;
+            }
+        }
+    }
+
+    scroll.z = touchData.zValue;
+    if (!scroll.z) scroll.state = SCROLL_UNINITIALIZED;
+
+    return report;
+}
+#    endif
+
 report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     pinnacle_data_t touchData;
     static uint16_t x = 0, y = 0;
     int8_t          report_x = 0, report_y = 0;
 #    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
     cursor_glide_t glide = cursor_glide_check();
+#    endif
+#    ifdef CIRQUE_PINNACLE_ENABLE_CIRCULAR_SCROLL
+    circular_scroll_t scroll;
 #    endif
 
 #    ifndef POINTING_DEVICE_MOTION_PIN
@@ -242,12 +368,21 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
         touchData = cirque_pinnacle_read_data();
         cirque_pinnacle_scale_data(&touchData, cirque_pinnacle_get_scale(), cirque_pinnacle_get_scale()); // Scale coordinates to arbitrary X, Y resolution
 
-        if (x && y && touchData.xValue && touchData.yValue) {
-            report_x = (int8_t)(touchData.xValue - x);
-            report_y = (int8_t)(touchData.yValue - y);
+#    ifdef CIRQUE_PINNACLE_ENABLE_CIRCULAR_SCROLL
+        scroll = circular_scroll(touchData);
+        mouse_report.v = scroll.v;
+        mouse_report.h = scroll.h;
+        if (!scroll.suppress_touch)
+#    endif
+        {
+
+            if (x && y && touchData.xValue && touchData.yValue) {
+                report_x = (int8_t)(touchData.xValue - x);
+                report_y = (int8_t)(touchData.yValue - y);
+            }
+            x = touchData.xValue;
+            y = touchData.yValue;
         }
-        x = touchData.xValue;
-        y = touchData.yValue;
 
 #    ifndef CIRQUE_PINNACLE_DISABLE_TAP
         mouse_report = trackpad_tap(mouse_report, touchData);
