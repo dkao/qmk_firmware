@@ -1,0 +1,9 @@
+OLED_ENABLE = no
+# OLED_DRIVER = SSD1306   # Enables the use of OLED displays
+ENCODER_ENABLE = no       # Enables the use of one or more encoders
+RGBLIGHT_ENABLE = no      # Enable keyboard RGB underglow
+MOUSEKEY_ENABLE = yes     # Mouse keys
+RGB_MATRIX_SUPPORTED = no
+POINTING_DEVICE_ENABLE = yes
+POINTING_DEVICE_DRIVER = cirque_pinnacle_i2c
+# POINTING_DEVICE_DRIVER = custom
