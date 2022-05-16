@@ -140,6 +140,9 @@ report_mouse_t trackpad_tap(report_mouse_t mouse_report, pinnacle_data_t touchDa
 #    endif
 
 #    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
+#        ifndef CIRQUE_PINNACLE_CURSOR_GLIDE_TRIGGER_PERCENTAGE
+#            define CIRQUE_PINNACLE_CURSOR_GLIDE_TRIGGER_PERCENTAGE 2
+#        endif
 typedef struct {
     int8_t dx;
     int8_t dy;
@@ -195,14 +198,23 @@ cursor_glide_t cursor_glide_check(void) {
 }
 
 cursor_glide_t cursor_glide_start(void) {
+    cursor_glide_t invalid_report = {0, 0, false};
+
     glide.coef     = 0.4; // good enough default
     glide.interval = 10;  // hardcode for 100sps
     glide.timer    = timer_read();
     glide.counter  = 0;
-    glide.v0       = hypotf(glide.dx0, glide.dy0);
+    glide.v0       = (glide.dx0 == 0 && glide.dy0 == 0) ? 0.0 : hypotf(glide.dx0, glide.dy0); // skip trigonometry if not needed
     glide.x        = 0;
     glide.y        = 0;
     glide.z        = 0;
+
+    if (glide.v0 < CIRQUE_PINNACLE_CURSOR_GLIDE_TRIGGER_PERCENTAGE * cirque_pinnacle_get_scale() / 100) {
+        // not enough velocity to be worth gliding, abort
+        glide.dx0 = 0;
+        glide.dy0 = 0;
+        return invalid_report;
+    }
 
     return cursor_glide();
 }
