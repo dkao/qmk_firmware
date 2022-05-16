@@ -32,7 +32,7 @@
  * For some reason yet to be debugged, POINTING_DEVICE_RIGHT gets sporadic false movements when the two halves are connected.
  * Right half works fine on its own with POINTING_DEVICE_RIGHT.
  * Current workaround is to turn on POINTING_DEVICE_COMBINED and build a separate firmware with POINTING_DEVICE_DRIVER = custom for the left half.
- * In this configuration, the sporadic false movements show up when using the left half on its own, but works fine when the two are connected.
+ * In this configuration, the sporadic false movements show up when using the right half on its own, but works fine when the two are connected.
  */
 //#define POINTING_DEVICE_RIGHT
 #define POINTING_DEVICE_COMBINED

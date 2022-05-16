@@ -163,8 +163,8 @@ static cursor_glide_context_t glide;
 
 cursor_glide_t cursor_glide(void) {
     cursor_glide_t report;
-    float   p;
-    int32_t x, y;
+    float          p;
+    int16_t        x, y;
 
     glide.counter++;
     // calculate current position
@@ -187,21 +187,22 @@ cursor_glide_t cursor_glide(void) {
 
 cursor_glide_t cursor_glide_check(void) {
     cursor_glide_t invalid_report = {0, 0, false};
-    if (glide.z || (glide.dx0 == 0 && glide.dy0 == 0) || timer_elapsed(glide.timer) < glide.interval)
+    if (glide.z || (glide.dx0 == 0 && glide.dy0 == 0) || timer_elapsed(glide.timer) < glide.interval) {
         return invalid_report;
-    else
+    } else {
         return cursor_glide();
+    }
 }
 
 cursor_glide_t cursor_glide_start(void) {
-    glide.coef = 0.4; // good enough default
-    glide.interval = 10; // hardcode for 100sps
-    glide.timer = timer_read();
-    glide.counter = 0;
-    glide.v0 = hypotf(glide.dx0, glide.dy0);
-    glide.x = 0;
-    glide.y = 0;
-    glide.z = 0;
+    glide.coef     = 0.4; // good enough default
+    glide.interval = 10;  // hardcode for 100sps
+    glide.timer    = timer_read();
+    glide.counter  = 0;
+    glide.v0       = hypotf(glide.dx0, glide.dy0);
+    glide.x        = 0;
+    glide.y        = 0;
+    glide.z        = 0;
 
     return cursor_glide();
 }
@@ -209,7 +210,7 @@ cursor_glide_t cursor_glide_start(void) {
 void cursor_glide_update(int8_t dx, int8_t dy, uint16_t z) {
     glide.dx0 = dx;
     glide.dy0 = dy;
-    glide.z = z;
+    glide.z   = z;
 }
 #    endif
 
@@ -337,11 +338,11 @@ circular_scroll_t circular_scroll(pinnacle_data_t touchData) {
 #    endif
 
 report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
-    pinnacle_data_t touchData;
-    static uint16_t x = 0, y = 0;
-    int8_t          report_x = 0, report_y = 0;
+    pinnacle_data_t   touchData;
+    static uint16_t   x = 0, y = 0;
+    int8_t            report_x = 0, report_y = 0;
 #    ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
-    cursor_glide_t glide = cursor_glide_check();
+    cursor_glide_t    glide = cursor_glide_check();
 #    endif
 #    ifdef CIRQUE_PINNACLE_ENABLE_CIRCULAR_SCROLL
     circular_scroll_t scroll;
@@ -352,7 +353,9 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
 #        ifdef CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
         if (!glide.valid)
 #        endif
+        {
             goto exit;
+        }
     } else
 #    endif
     {
@@ -361,7 +364,7 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
         cirque_pinnacle_scale_data(&touchData, cirque_pinnacle_get_scale(), cirque_pinnacle_get_scale()); // Scale coordinates to arbitrary X, Y resolution
 
 #    ifdef CIRQUE_PINNACLE_ENABLE_CIRCULAR_SCROLL
-        scroll = circular_scroll(touchData);
+        scroll         = circular_scroll(touchData);
         mouse_report.v = scroll.v;
         mouse_report.h = scroll.h;
         if (!scroll.suppress_touch)
