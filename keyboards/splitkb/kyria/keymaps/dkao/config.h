@@ -34,8 +34,9 @@
  * Current workaround is to turn on POINTING_DEVICE_COMBINED and build a separate firmware with POINTING_DEVICE_DRIVER = custom for the left half.
  * In this configuration, the sporadic false movements show up when using the right half on its own, but works fine when the two are connected.
  */
-//#define POINTING_DEVICE_RIGHT
-#define POINTING_DEVICE_COMBINED
+#define POINTING_DEVICE_RIGHT
+//#define POINTING_DEVICE_COMBINED
+#define POINTING_DEVICE_TASK_THROTTLE_MS 10
 #define CIRQUE_PINNACLE_ADDR 0x2A
 #define CIRQUE_PINNACLE_CURVED_OVERLAY
 //#define CIRQUE_PINNACLE_DISABLE_SMOOTHING
