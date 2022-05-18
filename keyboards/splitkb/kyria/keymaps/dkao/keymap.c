@@ -237,10 +237,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 //                                  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______
 //     ),
 };
+// clang-format on
 
 #ifdef POINTING_DEVICE_ENABLE
 void pointing_device_init_user(void) {
-    pointing_device_set_cpi(512);
+#    define TRACKPAD_DIAMETER_MM 35
+#    define TRACKPAD_DIAMETER_INCH (TRACKPAD_DIAMETER_MM / 25.4)
+#    define TRACKPAD_CPI_TO_RANGE(cpi) (roundf((cpi) * TRACKPAD_DIAMETER_INCH))
+    pointing_device_set_cpi(TRACKPAD_CPI_TO_RANGE(400));
 }
 #endif
 
