@@ -78,6 +78,24 @@ inline void timer_clear(void) {
     }
 }
 
+/*
+ * manually check for compare match flag if it is set before ISR
+ * somewhat handles cases where interrupts are disabled globally
+ */
+static inline void timer_adjust(void) {
+#if defined(__AVR_ATmega32A__)
+    uint8_t inc = !!(TIFR & _BV(OCF0));
+    TIFR = _BV(OCF0);
+#elif defined(__AVR_ATtiny85__)
+    uint8_t inc = !!(TIFR & _BV(OCF0A));
+    TIFR = _BV(OCF0A);
+#else
+    uint8_t inc = !!(TIFR0 & _BV(OCF0A));
+    TIFR0 = _BV(OCF0A);
+#endif
+    timer_count += inc;
+}
+
 /** \brief timer read
  *
  * FIXME: needs doc
@@ -86,6 +104,7 @@ inline uint16_t timer_read(void) {
     uint32_t t;
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        timer_adjust();
         t = timer_count;
     }
 
@@ -100,6 +119,7 @@ inline uint32_t timer_read32(void) {
     uint32_t t;
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        timer_adjust();
         t = timer_count;
     }
 
@@ -114,6 +134,7 @@ inline uint16_t timer_elapsed(uint16_t last) {
     uint32_t t;
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        timer_adjust();
         t = timer_count;
     }
 
@@ -128,6 +149,7 @@ inline uint32_t timer_elapsed32(uint32_t last) {
     uint32_t t;
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        timer_adjust();
         t = timer_count;
     }
 
