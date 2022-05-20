@@ -375,7 +375,7 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
         // Always read data and clear status flags if available
         // Block off interrupts so that no split transactions are happening when we clear flags and the next scan begins,
         // avoids noise from split transactions
-        ATOMIC_BLOCK_RESTORESTATE {
+        ATOMIC_BLOCK_FORCEON {
             touchData = cirque_pinnacle_read_data();
         };
         cirque_pinnacle_scale_data(&touchData, cirque_pinnacle_get_scale(), cirque_pinnacle_get_scale()); // Scale coordinates to arbitrary X, Y resolution
