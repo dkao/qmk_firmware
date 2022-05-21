@@ -28,7 +28,14 @@
 #define IGNORE_MOD_TAP_INTERRUPT
 
 #define SPLIT_POINTING_ENABLE
+/*
+ * For some reason yet to be debugged, POINTING_DEVICE_RIGHT gets sporadic false movements when the two halves are connected.
+ * Right half works fine on its own with POINTING_DEVICE_RIGHT.
+ * Current workaround is to turn on POINTING_DEVICE_COMBINED and build a separate firmware with POINTING_DEVICE_DRIVER = custom for the left half.
+ * In this configuration, the sporadic false movements show up when using the right half on its own, but works fine when the two are connected.
+ */
 #define POINTING_DEVICE_RIGHT
+//#define POINTING_DEVICE_COMBINED
 #define POINTING_DEVICE_TASK_THROTTLE_MS 1
 #define CIRQUE_PINNACLE_ADDR 0x2A
 #define CIRQUE_PINNACLE_CURVED_OVERLAY
@@ -36,18 +43,3 @@
 #define CIRQUE_PINNACLE_DISABLE_TAP
 #define CIRQUE_PINNACLE_ENABLE_CURSOR_GLIDE
 #define CIRQUE_PINNACLE_ENABLE_CIRCULAR_SCROLL
-/*
- * Default 20ms timeout causes I2C data corruption for some reason.
- * Corruption manifests as random jumps and touch lifts during tracking.
- * Here's a bisect of timout values:
- *   20 ms  - glitches
- *   100 ms - works
- *   60 ms  - works
- *   40 ms  - works
- *   30 ms  - glitches
- *   35 ms  - glitches
- *   38 ms  - glitches
- *   39 ms  - glitches
- * Setting to 100 to get 5 ms time_slice in avr i2c_start(). Don't know if that function is actually guilty, will find out later.
- */
-#define CIRQUE_PINNACLE_TIMEOUT 100
