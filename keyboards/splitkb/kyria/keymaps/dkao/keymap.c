@@ -26,6 +26,8 @@ enum layers {
     //_MOUSE,
 };
 
+#define _SHMUP _DVORAK
+#define XXXXXXX KC_NO
 
 // Aliases for readability
 #define QWERTY   DF(_QWERTY)
@@ -83,11 +85,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *                        |      |      | Enter|      |      |  |      |      |      |      |      |
  *                        `----------------------------------'  `----------------------------------'
  */
-    [_DVORAK] = LAYOUT(
-     KC_TAB  ,KC_QUOTE,KC_COMM,  KC_DOT,   KC_P ,   KC_Y ,                                        KC_F,   KC_G ,  KC_C ,   KC_R ,  KC_L , KC_BSPC,
-     CTL_ESC , KC_A ,  KC_O   ,  KC_E  ,   KC_U ,   KC_I ,                                        KC_D,   KC_H ,  KC_T ,   KC_N ,  KC_S , CTL_MINS,
-     KC_LSFT ,KC_SCLN, KC_Q   ,  KC_J  ,   KC_K ,   KC_X , KC_LBRC,KC_CAPS,     FKEYS  , KC_RBRC, KC_B,   KC_M ,  KC_W ,   KC_V ,  KC_Z , KC_RSFT,
-                                 ADJUST, KC_LGUI, ALT_ENT, KC_SPC , NAV   ,     SYM    , KC_SPC ,KC_RALT, KC_RGUI, KC_APP
+    // [_DVORAK] = LAYOUT(
+    //  KC_TAB  ,KC_QUOTE,KC_COMM,  KC_DOT,   KC_P ,   KC_Y ,                                        KC_F,   KC_G ,  KC_C ,   KC_R ,  KC_L , KC_BSPC,
+    //  CTL_ESC , KC_A ,  KC_O   ,  KC_E  ,   KC_U ,   KC_I ,                                        KC_D,   KC_H ,  KC_T ,   KC_N ,  KC_S , CTL_MINS,
+    //  KC_LSFT ,KC_SCLN, KC_Q   ,  KC_J  ,   KC_K ,   KC_X , KC_LBRC,KC_CAPS,     FKEYS  , KC_RBRC, KC_B,   KC_M ,  KC_W ,   KC_V ,  KC_Z , KC_RSFT,
+    //                              ADJUST, KC_LGUI, ALT_ENT, KC_SPC , NAV   ,     SYM    , KC_SPC ,KC_RALT, KC_RGUI, KC_APP
+    // ),
+    [_SHMUP] = LAYOUT(
+      KC_TAB , XXXXXXX, XXXXXXX, KC_UP  , XXXXXXX, XXXXXXX,                                     XXXXXXX, KC_Q   , KC_W   , KC_E   , KC_R   , KC_BSPC,
+      KC_ESC , XXXXXXX, KC_LEFT, KC_DOWN, KC_RGHT, XXXXXXX,                                     XXXXXXX, KC_Z   , KC_X   , KC_C   , KC_V   , KC_LCTL,
+      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, FKEYS  , XXXXXXX, XXXXXXX, KC_A   , KC_S   , KC_D   , KC_F   , KC_ENT ,
+                                 ADJUST , KC_LGUI, ALT_ENT, KC_UP  , NAV    , SYM    , KC_LSFT, KC_SPC , KC_RGUI, KC_APP
     ),
 
 /*
@@ -345,3 +353,174 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
 }
 #endif
 DELETE THIS LINE TO UNCOMMENT (2/2) */
+
+#define SOCD_CLEANER_LRN_UDU
+#if defined(SOCD_CLEANER_LRN_UDU) || defined(SOCD_CLEANER_LAST_INPUT_WINS)
+/*
+static keypos_t keypos_up = {0, 0};
+static keypos_t keypos_down = {1, 0};
+static keypos_t keypos_left = {2, 0};
+static keypos_t keypos_right = {3, 0};
+*/
+
+static uint8_t pressed_up = 0;
+static uint8_t pressed_down = 0;
+static uint8_t pressed_left = 0;
+static uint8_t pressed_right = 0;
+
+#ifdef SOCD_CLEANER_LAST_INPUT_WINS
+static uint8_t up_wins = 0;
+static uint8_t left_wins = 0;
+#endif
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+	uint8_t layer = layer_switch_get_layer(record->event.key);
+	if (layer != _SHMUP) {
+		return true;
+	}
+	/*
+	uint16_t key_up = keymap_key_to_keycode(layer, keypos_up);
+	uint16_t key_down = keymap_key_to_keycode(layer, keypos_down);
+	uint16_t key_left = keymap_key_to_keycode(layer, keypos_left);
+	uint16_t key_right = keymap_key_to_keycode(layer, keypos_right);
+	*/
+	uint16_t key_up = KC_UP;
+	uint16_t key_down = KC_DOWN;
+	uint16_t key_left = KC_LEFT;
+	uint16_t key_right = KC_RGHT;
+	uint8_t layer_mask = (1 << layer);
+#ifdef SOCD_CLEANER_LRN_UDU
+	/*
+	 * Left + Right = Neutral
+	 * Up + Down = Up
+	 */
+	if (keycode == key_up) {
+		if (record->event.pressed) {
+			pressed_up |= layer_mask;
+			if (pressed_down & layer_mask) {
+				unregister_code(key_down);
+				return true;
+			}
+		} else {
+			pressed_up &= (~layer_mask);
+			if (pressed_down & layer_mask) {
+				register_code(key_down);
+				return true;
+			}
+		}
+	} else if (keycode == key_down) {
+		if (record->event.pressed) {
+			pressed_down |= layer_mask;
+			if (pressed_up & layer_mask) {
+				return false;
+			}
+		} else {
+			pressed_down &= (~layer_mask);
+			if (pressed_up & layer_mask) {
+				return false;
+			}
+		}
+	} else if (keycode == key_left) {
+		if (record->event.pressed) {
+			pressed_left |= layer_mask;
+			if (pressed_right & layer_mask) {
+				unregister_code(key_right);
+				return false;
+			}
+		} else {
+			pressed_left &= (~layer_mask);
+			if (pressed_right & layer_mask) {
+				register_code(key_right);
+				return false;
+			}
+		}
+	} else if (keycode == key_right) {
+		if (record->event.pressed) {
+			pressed_right |= layer_mask;
+			if (pressed_left & layer_mask) {
+				unregister_code(key_left);
+				return false;
+			}
+		} else {
+			pressed_right &= (~layer_mask);
+			if (pressed_left & layer_mask) {
+				register_code(key_left);
+				return false;
+			}
+		}
+	}
+#else
+	/* Last input wins */
+	if (keycode == key_up) {
+		if (record->event.pressed) {
+			pressed_up |= layer_mask;
+			if (pressed_down & layer_mask) {
+				unregister_code(key_down);
+				up_wins |= layer_mask;
+			}
+		} else {
+			pressed_up &= (~layer_mask);
+			if (pressed_down & layer_mask) {
+				if (up_wins & layer_mask) {
+					register_code(key_down);
+				} else {
+					return false;
+				}
+			}
+		}
+	} else if (keycode == key_down) {
+		if (record->event.pressed) {
+			pressed_down |= layer_mask;
+			if (pressed_up & layer_mask) {
+				unregister_code(key_up);
+				up_wins &= (~layer_mask);
+			}
+		} else {
+			pressed_down &= (~layer_mask);
+			if (pressed_up & layer_mask) {
+				if (!(up_wins & layer_mask)) {
+					register_code(key_up);
+				} else {
+					return false;
+				}
+			}
+		}
+	} else if (keycode == key_left) {
+		if (record->event.pressed) {
+			pressed_left |= layer_mask;
+			if (pressed_right & layer_mask) {
+				unregister_code(key_right);
+				left_wins |= layer_mask;
+			}
+		} else {
+			pressed_left &= (~layer_mask);
+			if (pressed_right & layer_mask) {
+				if (left_wins & layer_mask) {
+					register_code(key_right);
+				} else {
+					return false;
+				}
+			}
+		}
+	} else if (keycode == key_right) {
+		if (record->event.pressed) {
+			pressed_right |= layer_mask;
+			if (pressed_left & layer_mask) {
+				unregister_code(key_left);
+				left_wins &= (~layer_mask);
+			}
+		} else {
+			pressed_right &= (~layer_mask);
+			if (pressed_left & layer_mask) {
+				if (!(left_wins & layer_mask)) {
+					register_code(key_left);
+				} else {
+					return false;
+				}
+			}
+		}
+	}
+#endif
+	return true;
+}
+#endif
