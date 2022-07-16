@@ -97,7 +97,8 @@ const pointing_device_driver_t pointing_device_driver = {
 // clang-format on
 
 #elif defined(POINTING_DEVICE_DRIVER_cirque_pinnacle_i2c) || defined(POINTING_DEVICE_DRIVER_cirque_pinnacle_spi)
-#    ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
+#    if CIRQUE_PINNACLE_POSITION_MODE
+#        ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
 static bool cursor_glide_enable = true;
 
 static cursor_glide_context_t glide = {.config = {
@@ -113,40 +114,36 @@ void cirque_pinnacle_enable_cursor_glide(bool enable) {
 void cirque_pinnacle_configure_cursor_glide(float trigger_px) {
     glide.config.trigger_px = trigger_px;
 }
-#    endif
+#        endif // POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
 
 report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
     pinnacle_data_t          touchData = cirque_pinnacle_read_data();
     mouse_xy_report_t        report_x = 0, report_y = 0;
     static mouse_xy_report_t x = 0, y = 0;
-#    ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
+#        ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
     cursor_glide_t           glide_report = {0};
 
     if (cursor_glide_enable) {
         glide_report = cursor_glide_check(&glide);
     }
-#    endif
-
-#    if !CIRQUE_PINNACLE_POSITION_MODE
-#        error Cirque Pinnacle with relative mode not implemented yet.
-#    endif
+#        endif // POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
 
     if (!touchData.valid) {
-#    ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
+#        ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
         if (cursor_glide_enable && glide_report.valid) {
             report_x = glide_report.dx;
             report_y = glide_report.dy;
             goto mouse_report_update;
         }
-#    endif
+#        endif // POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
         return mouse_report;
     }
 
-#    if CONSOLE_ENABLE
+#        if CONSOLE_ENABLE
     if (debug_mouse && touchData.touchDown) {
         dprintf("cirque_pinnacle touchData x=%4d y=%4d z=%2d\n", touchData.xValue, touchData.yValue, touchData.zValue);
     }
-#    endif
+#        endif // CONSOLE_ENABLE
 
     // Scale coordinates to arbitrary X, Y resolution
     cirque_pinnacle_scale_data(&touchData, cirque_pinnacle_get_scale(), cirque_pinnacle_get_scale());
@@ -159,7 +156,7 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
         x = touchData.xValue;
         y = touchData.yValue;
 
-#    ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
+#        ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
         if (cursor_glide_enable) {
             if (touchData.touchDown) {
                 cursor_glide_update(&glide, report_x, report_y, touchData.zValue);
@@ -171,17 +168,35 @@ report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
                 }
             }
         }
-#    endif
+#        endif // POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
     }
 
-#    ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
+#        ifdef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
 mouse_report_update:
-#    endif
+#        endif // POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE
     mouse_report.x = report_x;
     mouse_report.y = report_y;
 
     return mouse_report;
 }
+#    else      // CIRQUE_PINNACLE_POSITION_MODE == 0
+report_mouse_t cirque_pinnacle_get_report(report_mouse_t mouse_report) {
+    pinnacle_data_t touchData = cirque_pinnacle_read_data();
+    if (!touchData.valid) {
+        /* Data not ready */
+        return mouse_report;
+    }
+    /* xDelta and yDelta seem to already be in 2's complement, not sure what the sign bits were for */
+    mouse_report.x = (int8_t)touchData.xDelta;
+    /* Y axis is reversed in relative mode for some reason */
+    mouse_report.y = -(int8_t)touchData.yDelta;
+    /* Assuming wheelCount follows Intellimouse PS/2 protocol: https://www.scs.stanford.edu/10wi-cs140/pintos/specs/kbd/scancodes-12.html */
+    mouse_report.v = (int8_t)touchData.wheelCount;
+    /* buttons format matches report_mouse_t */
+    mouse_report.buttons = touchData.buttons;
+    return mouse_report;
+}
+#    endif     // CIRQUE_PINNACLE_POSITION_MODE
 
 uint16_t cirque_pinnacle_get_cpi(void) {
     return CIRQUE_PINNACLE_PX_TO_INCH(cirque_pinnacle_get_scale());

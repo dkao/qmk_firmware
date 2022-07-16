@@ -32,6 +32,14 @@ void print_byte(uint8_t byte) {
 #endif
 
 /*  Logical Scaling Functions */
+uint16_t cirque_pinnacle_get_scale(void) {
+    return scale_data;
+}
+void cirque_pinnacle_set_scale(uint16_t scale) {
+    scale_data = scale;
+}
+
+#if CIRQUE_PINNACLE_POSITION_MODE
 // Clips raw coordinates to "reachable" window of sensor
 // NOTE: values outside this window can only appear as a result of noise
 void ClipCoordinates(pinnacle_data_t* coordinates) {
@@ -45,13 +53,6 @@ void ClipCoordinates(pinnacle_data_t* coordinates) {
     } else if (coordinates->yValue > CIRQUE_PINNACLE_Y_UPPER) {
         coordinates->yValue = CIRQUE_PINNACLE_Y_UPPER;
     }
-}
-
-uint16_t cirque_pinnacle_get_scale(void) {
-    return scale_data;
-}
-void cirque_pinnacle_set_scale(uint16_t scale) {
-    scale_data = scale;
 }
 
 // Scales data to desired X & Y resolution
@@ -72,6 +73,7 @@ void cirque_pinnacle_scale_data(pinnacle_data_t* coordinates, uint16_t xResoluti
     coordinates->xValue = (uint16_t)(xTemp * xResolution / CIRQUE_PINNACLE_X_RANGE);
     coordinates->yValue = (uint16_t)(yTemp * yResolution / CIRQUE_PINNACLE_Y_RANGE);
 }
+#endif
 
 // Clears Status1 register flags (SW_CC and SW_DR)
 void cirque_pinnacle_clear_flags() {

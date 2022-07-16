@@ -19,6 +19,12 @@
 #include "cirque_pinnacle.h"
 #include "report.h"
 
+#if !CIRQUE_PINNACLE_POSITION_MODE
+#    undef CIRQUE_PINNACLE_CIRCULAR_SCROLL_ENABLE       // Requires absolute coordinates
+#    undef CIRQUE_PINNACLE_TAP_ENABLE                   // Already handled in firmware
+#    undef POINTING_DEVICE_GESTURES_CURSOR_GLIDE_ENABLE // Requires lift status, not available in relative mode
+#endif
+
 typedef struct {
     bool tap_enable;
     bool circular_scroll_enable;
