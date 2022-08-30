@@ -271,7 +271,7 @@ __attribute__((weak)) void pointing_device_task(void) {
     // pointing device scroll handling
 #ifdef POINTING_DEVICE_SCROLL_ENABLE
     local_mouse_report = pointing_device_task_scroll(local_mouse_report);
-#end
+#endif
     // combine with mouse report to ensure that the combined is sent correctly
 #ifdef MOUSEKEY_ENABLE
     report_mouse_t mousekey_report = mousekey_get_report();
