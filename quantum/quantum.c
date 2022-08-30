@@ -336,6 +336,9 @@ bool process_record_quantum(keyrecord_t *record) {
 #ifdef PROGRAMMABLE_BUTTON_ENABLE
             process_programmable_button(keycode, record) &&
 #endif
+#if defined(POINTING_DEVICE_ENABLE) && defined(POINTING_DEVICE_SCROLL_ENABLE)
+            process_record_scroll(keycode, record) &&
+#endif
             true)) {
         return false;
     }
