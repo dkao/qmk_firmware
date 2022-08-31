@@ -611,7 +611,7 @@ enum quantum_keycodes {
 
     UNICODE_MODE_EMACS,
 
-    // keycodes for pointing_device_scroll_framework
+    // pointing device scroll mode ranges, supports up to scroll mode 16 - not to be used directly
     SCROLL_MODE_MO_START,
     SCROLL_MODE_MO_END = SCROLL_MODE_MO_START + 0x000e,
     SCROLL_MODE_TG_START,
@@ -621,6 +621,20 @@ enum quantum_keycodes {
 
     // Start of custom keycode range for keyboards and keymaps - always leave at the end
     SAFE_RANGE
+};
+
+enum pointing_device_scroll_modes {
+    // null scroll mode
+    SM_NONE = 0x00,
+    
+    // built in scroll modes
+    SM_DRAG,
+    SM_CARET,
+    SM_VOLUME,
+    SM_HISTORY,
+
+    // start of custom scroll mode range - always leave at the end
+    SM_SAFE_RANGE
 };
 
 // Keycode modifiers & aliases
@@ -883,17 +897,27 @@ enum quantum_keycodes {
 
 #define ALL_T(kc) HYPR_T(kc)
 
-// pointing device scroll key macros
-// Momentary switch scroll mode - 16 scroll mode max
-#define SM_MO(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_MO_START - 1) : SCROLL_MODE_MO_START
-// Toggle scroll mode - 16 scroll mode max
-#define SM_TG(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TG_START - 1) : SCROLL_MODE_TG_START
-// Scroll mode tap toggle - 16 scroll mode max
-#define SM_TT(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TT_START - 1) : SCROLL_MODE_TT_START
-
 // Dedicated keycode versions for Hyper and Meh, if you want to use them as standalone keys rather than mod-tap
 #define KC_HYPR HYPR(KC_NO)
 #define KC_MEH MEH(KC_NO)
+
+// Pointing device scroll key macros
+// Momentary switch scroll mode - 16 scroll mode max
+#define SM_MO(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_MO_START - 1) : SCROLL_MODE_MO_START
+
+// Toggle scroll mode - 16 scroll mode max
+#define SM_TG(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TG_START - 1) : SCROLL_MODE_TG_START
+
+// Scroll mode tap toggle - 16 scroll mode max
+#define SM_TT(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TT_START - 1) : SCROLL_MODE_TT_START
+
+// Scroll modes aliases
+#define SM_DRG SM_DRAG
+#define SM_CRT SM_CARET
+#define SM_VOL SM_VOLUME
+#define SM_HST SM_HISTORY
+
+// Scroll Mode aliases
 
 // Unicode aliases
 // UNICODE_ENABLE - Allows Unicode input up to 0x7FFF
