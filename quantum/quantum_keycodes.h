@@ -604,7 +604,13 @@ enum quantum_keycodes {
     SECURE_REQUEST,
 
     CAPS_WORD,
-    
+
+    MAGIC_SWAP_ESCAPE_CAPSLOCK,
+    MAGIC_UNSWAP_ESCAPE_CAPSLOCK,
+    MAGIC_TOGGLE_ESCAPE_CAPSLOCK,
+
+    UNICODE_MODE_EMACS,
+
     // keycodes for pointing_device_scroll_framework
     SCROLL_MODE_MO_START,
     SCROLL_MODE_MO_END = SCROLL_MODE_MO_START + 0x000e,
@@ -612,12 +618,6 @@ enum quantum_keycodes {
     SCROLL_MODE_TG_END = SCROLL_MODE_TG_START + 0x000e,
     SCROLL_MODE_TT_START,
     SCROLL_MODE_TT_END = SCROLL_MODE_TT_START + 0x000e,
-
-    MAGIC_SWAP_ESCAPE_CAPSLOCK,
-    MAGIC_UNSWAP_ESCAPE_CAPSLOCK,
-    MAGIC_TOGGLE_ESCAPE_CAPSLOCK,
-
-    UNICODE_MODE_EMACS,
 
     // Start of custom keycode range for keyboards and keymaps - always leave at the end
     SAFE_RANGE
@@ -882,6 +882,14 @@ enum quantum_keycodes {
 #define SAGR_T(kc) RSA_T(kc)
 
 #define ALL_T(kc) HYPR_T(kc)
+
+// pointing device scroll key macros
+// Momentary switch scroll mode - 16 scroll mode max
+#define SM_MO(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_MO_START - 1) : SCROLL_MODE_MO_START
+// Toggle scroll mode - 16 scroll mode max
+#define SM_TG(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TG_START - 1) : SCROLL_MODE_TG_START
+// Scroll mode tap toggle - 16 scroll mode max
+#define SM_TT(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TT_START - 1) : SCROLL_MODE_TT_START
 
 // Dedicated keycode versions for Hyper and Meh, if you want to use them as standalone keys rather than mod-tap
 #define KC_HYPR HYPR(KC_NO)
