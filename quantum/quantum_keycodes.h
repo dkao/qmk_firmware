@@ -626,7 +626,7 @@ enum quantum_keycodes {
 enum pointing_device_scroll_modes {
     // Null scroll mode
     SM_NONE = 0x00,
-    
+
     // Built in scroll modes
     SM_DRAG,
     SM_CARET,
