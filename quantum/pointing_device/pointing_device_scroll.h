@@ -49,22 +49,6 @@ typedef struct {
     mouse_xy_report_t v;
 } scroll_record_t;
 
-/* Default Scroll Modes */
-enum scroll_modes {
-    SM_NONE = 0x00, // Null scroll mode
-    SM_DRAG,
-    SM_CARET,
-    SM_VOLUME,
-    SM_HISTORY,
-    SM_SAFE_RANGE // to add more scroll modes leave at end
-};
-
-/* alias scroll modes */
-#define SM_DRG SM_DRAG
-#define SM_CRT SM_CARET
-#define SM_VOL SM_VOLUME
-#define SM_HST SM_HISTORY
-
 /* ----------Set up functions------------------------------------------------------------------------------------- */
 report_mouse_t pointing_device_task_scroll(report_mouse_t mouse_report);                                // handles mouse_report processing add to pointing_device_task
 void           pointing_device_axes_conv(scroll_record_t* scroll_record, report_mouse_t* mouse_report); // overwritable function that converts pointing_device x & y axes to local h & v
