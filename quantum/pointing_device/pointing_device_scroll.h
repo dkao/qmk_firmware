@@ -59,11 +59,6 @@ enum scroll_modes {
     SM_SAFE_RANGE // to add more scroll modes leave at end
 };
 
-/* keycode macros */
-#define SM_MO(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_MO_START - 1) : SCROLL_MODE_MO_START
-#define SM_TG(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TG_START - 1) : SCROLL_MODE_TG_START
-#define SM_TT(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TT_START - 1) : SCROLL_MODE_TT_START
-
 /* alias scroll modes */
 #define SM_DRG SM_DRAG
 #define SM_CRT SM_CARET
