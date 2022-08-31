@@ -611,7 +611,7 @@ enum quantum_keycodes {
 
     UNICODE_MODE_EMACS,
 
-    // pointing device scroll mode ranges, supports up to scroll mode 16 - not to be used directly
+    // Pointing device scroll mode ranges supports up to scroll mode 16 - not to be used directly
     SCROLL_MODE_MO_START,
     SCROLL_MODE_MO_END = SCROLL_MODE_MO_START + 0x000e,
     SCROLL_MODE_TG_START,
@@ -624,16 +624,16 @@ enum quantum_keycodes {
 };
 
 enum pointing_device_scroll_modes {
-    // null scroll mode
+    // Null scroll mode
     SM_NONE = 0x00,
     
-    // built in scroll modes
+    // Built in scroll modes
     SM_DRAG,
     SM_CARET,
     SM_VOLUME,
     SM_HISTORY,
 
-    // start of custom scroll mode range - always leave at the end
+    // Start of custom scroll mode range - always leave at the end
     SM_SAFE_RANGE
 };
 
@@ -911,13 +911,11 @@ enum pointing_device_scroll_modes {
 // Scroll mode tap toggle - 16 scroll mode max
 #define SM_TT(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TT_START - 1) : SCROLL_MODE_TT_START
 
-// Scroll modes aliases
+// Scroll mode aliases
 #define SM_DRG SM_DRAG
 #define SM_CRT SM_CARET
 #define SM_VOL SM_VOLUME
 #define SM_HST SM_HISTORY
-
-// Scroll Mode aliases
 
 // Unicode aliases
 // UNICODE_ENABLE - Allows Unicode input up to 0x7FFF
