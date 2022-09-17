@@ -617,9 +617,6 @@ enum quantum_keycodes {
     SCROLL_MODE_TG_START,
     SCROLL_MODE_TG_END = SCROLL_MODE_TG_START + 0x000f,
 
-#define SM_MO(sm) (((sm)&0x0f) + SCROLL_MODE_MO_START)
-#define SM_TG(sm) (((sm)&0x0f) + SCROLL_MODE_TG_START)
-
     // Start of custom keycode range for keyboards and keymaps - always leave at the end
     SAFE_RANGE
 };
@@ -837,6 +834,12 @@ enum quantum_keycodes {
 
 // M-od, T-ap - 256 keycode max
 #define MT(mod, kc) (QK_MOD_TAP | (((mod)&0x1F) << 8) | ((kc)&0xFF))
+
+// Scroll mode keys 16 scroll mode max
+// Momentary scroll mode
+#define SM_MO(sm) (((sm)&0x0f) + SCROLL_MODE_MO_START)
+// Toggle default scroll mode
+#define SM_TG(sm) (((sm)&0x0f) + SCROLL_MODE_TG_START)
 
 #define LCTL_T(kc) MT(MOD_LCTL, kc)
 #define RCTL_T(kc) MT(MOD_RCTL, kc)
