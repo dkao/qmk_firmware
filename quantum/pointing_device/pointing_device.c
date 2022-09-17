@@ -169,7 +169,6 @@ __attribute__((weak)) void pointing_device_send(void) {
     uint8_t buttons = local_mouse_report.buttons;
     memset(&local_mouse_report, 0, sizeof(local_mouse_report));
     local_mouse_report.buttons = buttons;
-
     memcpy(&old_report, &local_mouse_report, sizeof(local_mouse_report));
 }
 
