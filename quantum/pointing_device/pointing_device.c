@@ -270,10 +270,6 @@ __attribute__((weak)) void pointing_device_task(void) {
     local_mouse_report = pointing_device_adjust_by_defines(local_mouse_report);
     local_mouse_report = pointing_device_task_kb(local_mouse_report);
 #endif
-    // automatic mouse layer function
-#ifdef POINTING_DEVICE_AUTO_MOUSE_ENABLE
-    pointing_device_task_auto_mouse(local_mouse_report);
-#endif
     // pointing device scroll handling for single pointing device
 #if defined(POINTING_DEVICE_SCROLL_ENABLE) && !(defined(SPLIT_POINTING_ENABLE) && defined(POINTING_DEVICE_COMBINED))
     local_mouse_report = pointing_device_task_scroll(local_mouse_report);
