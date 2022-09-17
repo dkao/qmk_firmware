@@ -616,37 +616,13 @@ enum quantum_keycodes {
     SCROLL_MODE_MO_END = SCROLL_MODE_MO_START + 0x000f,
     SCROLL_MODE_TG_START,
     SCROLL_MODE_TG_END = SCROLL_MODE_TG_START + 0x000f,
-    SCROLL_MODE_TT_START,
-    SCROLL_MODE_TT_END = SCROLL_MODE_TT_START + 0x000f,
+
+#define SM_MO(sm) (((sm)&0x0f) + SCROLL_MODE_MO_START)
+#define SM_TG(sm) (((sm)&0x0f) + SCROLL_MODE_TG_START)
 
     // Start of custom keycode range for keyboards and keymaps - always leave at the end
     SAFE_RANGE
 };
-
-// Pointing device scroll modes
-enum pointing_device_scroll_modes {
-    // Null scroll mode
-    SM_NONE = 0x00,
-
-    // Built in scroll modes
-    SM_DRAG,
-    SM_CARET,
-    SM_VOLUME,
-    SM_HISTORY,
-
-    // Start of custom scroll mode range - always leave at the end
-    SM_SAFE_RANGE
-};
-
-// Scroll mode keycode modifiers
-// Momentary switch scroll mode - 16 scroll mode max
-#define SM_MO(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_MO_START - 1) : KC_NO
-
-// Toggle scroll mode - 16 scroll mode max
-#define SM_TG(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TG_START - 1) : KC_NO
-
-// Scroll mode tap toggle - 16 scroll mode max
-#define SM_TT(sm) sm > 0 ? (((sm)&0x0f) + SCROLL_MODE_TT_START - 1) : KC_NO
 
 // Keycode modifiers & aliases
 #define LCTL(kc) (QK_LCTL | (kc))
@@ -912,12 +888,6 @@ enum pointing_device_scroll_modes {
 #define KC_HYPR HYPR(KC_NO)
 #define KC_MEH MEH(KC_NO)
 
-// Scroll mode aliases
-#define SM_DRG SM_DRAG
-#define SM_CRT SM_CARET
-#define SM_VOL SM_VOLUME
-#define SM_HST SM_HISTORY
-
 // Unicode aliases
 // UNICODE_ENABLE - Allows Unicode input up to 0x7FFF
 #define UC(c) (QK_UNICODE | (c))
@@ -1011,5 +981,24 @@ enum pointing_device_scroll_modes {
 #define PROGRAMMABLE_BUTTON_MIN PROGRAMMABLE_BUTTON_1
 #define PROGRAMMABLE_BUTTON_MAX PROGRAMMABLE_BUTTON_32
 #define CAPSWRD CAPS_WORD
+
+// Pointing device scroll modes
+enum pointing_device_scroll_modes {
+    // Null scroll mode
+    SM_NONE = 0x00,
+
+    // Built in scroll modes
+    SM_DRAG,
+    SM_CARET,
+    SM_VOLUME,
+
+    // Start of custom scroll mode range - always leave at the end
+    SM_SAFE_RANGE
+};
+
+// Scroll mode aliases
+#define SM_DRG SM_DRAG
+#define SM_CRT SM_CARET
+#define SM_VOL SM_VOLUME
 
 #include "quantum_keycodes_legacy.h"
