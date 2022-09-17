@@ -21,8 +21,8 @@
 #include "pointing_device.h"
 
 /* Sanity check */
-#ifndef POINTING_DEVICE_SCROLL_ENABLE
-#    error "POINTING_DEVICE_SCROLL_ENABLE not defined! settings may be incorrect!"
+#if !defined(POINTING_DEVICE_SCROLL_ENABLE) || !defined(POINTING_DEVICE_ENABLE)
+#    error "POINTING_DEVICE_SCROLL_ENABLE or POINTING_DEVICE_ENABLE not defined! check config.h settings!"
 #endif
 
 /* default settings */
@@ -32,10 +32,17 @@
 #ifndef SCROLL_MODE_DEFAULT
 #    define SCROLL_MODE_DEFAULT 0
 #endif
+#if defined(SPLIT_POINTING_ENABLE) && defined(POINTING_DEVICE_COMBINED)
+#    if defined(SCROLL_MODE_LEFT)
+#        define SCROLL_LEFT_SIDE_DEFAULT true
+#    else
+#        define SCROLL_LEFT_SIDE_DEFAULT false
+#    endif
+#endif
 
 /* default divisors */
 #ifndef SCROLL_DRAG_DIVISOR
-#    define SCROLL_DRAG_DIVISOR 8
+#    define SCROLL_DRAG_DIVISOR 16
 #endif
 #ifndef SCROLL_CARET_DIVISOR
 #    define SCROLL_CARET_DIVISOR 32
@@ -43,57 +50,57 @@
 #ifndef SCROLL_VOL_DIVISOR
 #    define SCROLL_VOL_DIVISOR 32
 #endif
-#ifndef SCROLL_HIST_DIVISOR
-#    define SCROLL_HIST_DIVISOR 64
+
+#if SCROLL_DRAG_DIVISOR == 0 || SCROLL_CARET_DIVISOR == 0 || SCROLL_VOL_DIVISOR == 0
+#    error "One or more scroll mode divisors set to zero!"
 #endif
 
 /* local data structure */
+/* scroll record structure for passing user/keyboard scroll modes */
 typedef struct {
-    struct {
-        uint8_t active;
-        uint8_t toggle;
-    } mode;
-    struct {
-        mouse_xy_report_t x;
-        mouse_xy_report_t y;
-    } cursor;
+    uint8_t mode;
     int16_t h;
     int16_t v;
+} scroll_status_t;
+
+typedef struct {
+    struct {
+#if defined(SPLIT_POINTING_ENABLE) && defined(POINTING_DEVICE_COMBINED)
+        bool is_left;
+#endif
+        uint8_t tg_mode;
+    } config;
+    scroll_status_t status;
 } scroll_context_t;
 
-/* ----------Set up functions------------------------------------------------------------------------------------- */
-report_mouse_t pointing_device_task_scroll(report_mouse_t mouse_report);       // handles mouse_report processing add to pointing_device_task
-bool           process_record_scroll(uint16_t keyrecord, keyrecord_t* record); // handle processing of builtin keyrecords
+/* ----------Controlling scroll modes----------------------------------------------------------------------------- */
+void    set_scroll_mode(uint8_t scroll_mode);    // set scroll mode to scroll_mode ID
+uint8_t get_scroll_mode(void);                   // returns active scroll mode ID
+void    scroll_mode_toggle(uint8_t scroll_mode); // toggle scroll mode
+uint8_t get_scroll_mode_toggle(void);            // get toggle scroll mode index
 
-/* ----------Control functions------------------------------------------------------------------------------------ */
-uint8_t        get_scroll_mode(void);                         // returns active scroll mode ID
-void           set_scroll_mode(uint8_t scroll_mode);          // set scroll mode to scroll_mode ID
-void           scroll_mode_toggle(uint8_t scroll_mode);       // toggle scroll mode
-uint8_t        get_scroll_mode_toggle(void);                  // get toggle scroll mode index
-int16_t        get_scroll(bool axis);                         // get scroll axis value (true: v, false: h)
-void           set_scroll(bool axis, int16_t val);            // set scroll axis value (true: v, false: h)
-void           accumulate_scroll(bool axis, int16_t val);     // accumulate val onto local scroll axis (true: v, false: h)
-void           store_cursor(report_mouse_t mouse_report);     // store and clear mouse_report x & y
-report_mouse_t restore_cursor(report_mouse_t mouse_report);   // restore locally stored mouse_report x & y
-report_mouse_t scroll_axes_conv(report_mouse_t mouse_report); // overwritable function that converts x & y axes to local h & v
+/* ----------Controlling scroll/mouse data------------------------------------------------------------------------ */
+void           set_scroll_status(scroll_status_t scroll_status);                              // set scroll mode and axes to scroll_status
+report_mouse_t scroll_conversion(scroll_status_t scroll_status, report_mouse_t mouse_report); // (overwritable) converts x & y axes to local h & v
 
 /* ----------Setting up scroll mode keyrecords-------------------------------------------------------------------- */
-void scroll_key_momentary(uint8_t scroll_mode, keyrecord_t* record);                   // momentary change of scroll mode while button is held
-void scroll_key_toggle(uint8_t scroll_mode, keyrecord_t* record);                      // toggles scroll mode on/off on keypress
-void scroll_key_tap_toggle(uint8_t scroll_mode, keyrecord_t* record);                  // works same as TT with scroll mode
-void scroll_key_with_hold(uint8_t scroll_mode, uint16_t kc_hold, keyrecord_t* record); // momentary change of scroll mode while holding keycode
+void scroll_key_momentary(uint8_t scroll_mode, keyrecord_t* record); // momentary change of scroll mode while button is held
+void scroll_key_toggle(uint8_t scroll_mode, keyrecord_t* record);    // toggles scroll mode on/off on keypress
 
-/* ----------Functions for custom scrolling modes----------------------------------------------------------------- */
-void scroll_tap_codes(uint16_t kc_h_neg, uint16_t kc_v_neg, uint16_t kc_v_pos, uint16_t kc_h_pos, uint8_t divisor); // turn h/v axis values into key taps
+/* ----------For custom scrolling modes--------------------------------------------------------------------------- */
+// turn h/v axis values into key taps
+void scroll_tap_codes(uint16_t st_kc_left, uint16_t st_kc_down, uint16_t st_kc_up, uint16_t st_kc_right, uint8_t divisor);
+
+/* ----------For multiple pointing devices------------------------------------------------------------------------ */
+#if defined(SPLIT_POINTING_ENABLE) && defined(POINTING_DEVICE_COMBINED)
+bool is_scroll_mode_left(void);      // check if left is current active scroll mode side
+void scroll_mode_switch_hands(void); // change witch hand is active on scroll mode
+#endif
 
 /* ----------Callbacks for modifying and adding scroll modes------------------------------------------------------ */
-bool process_scroll_mode_kb(uint8_t scroll_mode, report_mouse_t* mouse_report);
-bool process_scroll_mode_user(uint8_t scroll_mode, report_mouse_t* mouse_report);
+report_mouse_t process_scroll_mode_kb(scroll_status_t scroll_status, report_mouse_t mouse_report);
+report_mouse_t process_scroll_mode_user(scroll_status_t scroll_status, report_mouse_t mouse_report);
 
-/* ----------Useful Macros---------------------------------------------------------------------------------------- */
-#define SCROLL_H get_scroll(false)
-#define SCROLL_V get_scroll(true)
-#define SET_SCROLL_H(val) set_scroll(false, val)
-#define SET_SCROLL_V(val) set_scroll(true, val)
-#define ACCUMULATE_H(val) accumulate_scroll(false, val)
-#define ACCUMULATE_V(val) accumulate_scroll(true, val)
+/* ----------Core functions (only used in custom pointing devices or key processing)------------------------------ */
+report_mouse_t pointing_device_task_scroll(report_mouse_t mouse_report);       // handles mouse_report processing add to pointing_device_task
+bool           process_record_scroll(uint16_t keyrecord, keyrecord_t* record); // handle processing of builtin keyrecords

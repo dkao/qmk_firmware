@@ -19,7 +19,6 @@
 #    include "pointing_device_scroll.h"
 
 /* initialize static functions */
-static report_mouse_t process_scroll_mode(uint8_t scroll_mode, report_mouse_t mouse_report);
 
 /* duplication of inline function from pointing_device.c */
 static inline int8_t pointing_device_hv_clamp(mouse_xy_report_t value) {
@@ -32,103 +31,125 @@ static inline int8_t pointing_device_hv_clamp(mouse_xy_report_t value) {
     }
 }
 
+static report_mouse_t process_scroll_mode(scroll_status_t scroll_status, report_mouse_t mouse_report);
+
+// set up context and functions if using two pointing devices
+#    if defined(SPLIT_POINTING_ENABLE) && defined(POINTING_DEVICE_COMBINED)
 /* set up local context for storing current values */
-static scroll_context_t scroll_context = {.mode.active = SCROLL_MODE_DEFAULT, .mode.toggle = SCROLL_MODE_DEFAULT};
+static scroll_context_t scroll_context = {config.is_left = SCROLL_LEFT_SIDE_DEFAULT, .config.tg_mode = SCROLL_MODE_DEFAULT, .status.mode = SCROLL_MODE_DEFAULT};
+
+/**
+ * @brief Check if left side is controlled by scroll mode
+ *
+ * @return is left side active [bool]
+ */
+bool is_scroll_mode_left(void) {
+    return scroll_context.config.is_left;
+}
+
+/**
+ * @brief Allow changing of active side
+ *
+ * will change which side (left/right) is controlled by scroll mode
+ */
+void scroll_mode_switch_hands() {
+    scroll_context.config.is_left ^= 1;
+}
+#    else
+static scroll_context_t scroll_context = {.config.tg_mode = SCROLL_MODE_DEFAULT, .status.mode = SCROLL_MODE_DEFAULT};
+#    endif
 
 /**
  * @brief Reset scroll data
  *
- * Sets scroll data to defaults
+ *  Clear scroll status and set to defaults
  */
-void scroll_reset(void) {
-    memset(&scroll_context, 0, sizeof(scroll_context));
-    scroll_context.mode.active = SCROLL_MODE_DEFAULT;
-    scroll_context.mode.toggle = SCROLL_MODE_DEFAULT;
+static void scroll_reset(void) {
+    memset(&scroll_context.status, 0, sizeof(scroll_status_t));
+    scroll_context.status.mode = scroll_context.config.tg_mode;
 }
 
 /**
- * @brief access active scroll mode
+ * @brief set local stored scroll status
  *
- * @return uint8_t active scroll mode
+ * NOTE: Will ensure non 0 divisor is set
+ *
+ * @param[in] scroll_status scroll_status_t
+ */
+void set_scroll_status(scroll_status_t scroll_status) {
+    memcpy(&scroll_context.status, &scroll_status, sizeof(scroll_status_t));
+}
+
+/**
+ * @brief access active scroll record
+ *
+ * @return uint8_t active scroll record
  */
 uint8_t get_scroll_mode(void) {
-    return scroll_context.mode.active;
+    return scroll_context.status.mode;
 }
 
-/* access current toggled mode */
-uint8_t get_scroll_mode_toggle(void) {
-    return scroll_context.mode.toggle;
-}
-
-/* get scroll values */
-int16_t get_scroll(bool axis) {
-    if (axis) {
-        return scroll_context.v;
-    }
-    return scroll_context.h;
-}
-
-/* set active scroll mode */
+/**
+ * @brief set scroll record scroll mode
+ *
+ * @param[in] scroll_mode uint8_t
+ */
 void set_scroll_mode(uint8_t scroll_mode) {
-    if (scroll_context.mode.active != scroll_mode) {
-        scroll_context.mode.active = scroll_mode;
+    if (scroll_context.status.mode != scroll_mode) {
+        scroll_reset();
+        scroll_context.status.mode = scroll_mode;
+        dprintf("Scroll Mode Set: %d\n", scroll_mode);
     }
 }
 
-/* set current toggled mode */
+/**
+ * @brief Toggle scroll_mode
+ *
+ * Will change tg_mode setting to SCROLL_MODE_DEFAULT if on and
+ *
+ * @param[in] scroll_mode uint8_t
+ */
 void scroll_mode_toggle(uint8_t scroll_mode) {
-    if (scroll_context.mode.toggle == scroll_mode) {
-        scroll_context.mode.toggle = SM_NONE;
+    if (scroll_context.config.tg_mode == scroll_mode) {
+        scroll_context.config.tg_mode = SCROLL_MODE_DEFAULT;
     } else {
-        scroll_context.mode.toggle = scroll_mode;
+        scroll_context.config.tg_mode = scroll_mode;
     }
-    set_scroll_mode(scroll_context.mode.toggle);
+    if (get_scroll_mode() != scroll_context.config.tg_mode) scroll_reset();
 }
 
-/* set scroll value */
-void set_scroll(bool axis, int16_t val) {
-    if (axis) {
-        scroll_context.v = val;
-        return;
-    }
-    scroll_context.h = val;
+/**
+ * @brief access current toggled scroll mode
+ *
+ * @return uint8_t toggle scroll mode
+ */
+uint8_t get_scroll_mode_toggle(void) {
+    return scroll_context.config.tg_mode;
 }
 
-/* accumulate scroll */
-void accumulate_scroll(bool axis, int16_t val) {
-    if (axis) {
-#    ifdef POINTING_DEVICE_INVERT_V
-        SET_SCROLL_V(SCROLL_V - val);
-#    else
-        SET_SCROLL_V(SCROLL_V + val);
-#    endif
-        return;
-    }
+/**
+ * @brief Weak function to convert x/y axes to h/v
+ *
+ * The default uses accumulation based on inversion defines and
+ * halts cursor movement
+ *
+ * @params scroll_status[in] scroll_status_t
+ * @params mouse_report[in]  report_mouse_t
+ *
+ * @return updated mouse_report report_mouse_t
+ */
+__attribute__((weak)) report_mouse_t scroll_conversion(scroll_status_t scroll_status, report_mouse_t mouse_report) {
 #    ifdef POINTING_DEVICE_INVERT_H
-    SET_SCROLL_H(SCROLL_H - val);
+    scroll_status.h -= mouse_report.x;
 #    else
-    SET_SCROLL_H(SCROLL_H + val);
+    scroll_status.h += mouse_report.x;
 #    endif
-}
-
-/* store and reset mouse_report x & y */
-void store_cursor(report_mouse_t mouse_report) {
-    scroll_context.cursor.x = mouse_report.x;
-    scroll_context.cursor.y = mouse_report.y;
-}
-
-/* restore mouse_report x & y */
-report_mouse_t restore_cursor(report_mouse_t mouse_report) {
-    mouse_report.x = scroll_context.cursor.x;
-    mouse_report.y = scroll_context.cursor.y;
-    return mouse_report;
-}
-
-/* weak function to convert axes using accumulation */
-__attribute__((weak)) report_mouse_t scroll_axes_conv(report_mouse_t mouse_report) {
-    ACCUMULATE_H(mouse_report.x);
-    ACCUMULATE_V(mouse_report.y);
-    store_cursor(mouse_report);
+#    ifdef POINTING_DEVICE_INVERT_V
+    scroll_status.v -= mouse_report.y;
+#    else
+    scroll_status.v += mouse_report.y;
+#    endif
+    set_scroll_status(scroll_status);
     mouse_report.x = 0;
     mouse_report.y = 0;
     return mouse_report;
@@ -146,182 +167,192 @@ __attribute__((weak)) report_mouse_t scroll_axes_conv(report_mouse_t mouse_repor
  * @params kc_v_neg[in] uint16_t negative v keycode (DOWN)
  * @params kc_v_pos[in] uint16_t positive v keycode (UP)
  * @params kc_h_pos[in] uint16_t positive h keycode (RIGHT)
- * @params divisor[in]  uint8_t
+ * @params scroll_status[in]  scroll_status_t current scroll status
  */
-void scroll_tap_codes(uint16_t kc_h_neg, uint16_t kc_v_neg, uint16_t kc_v_pos, uint16_t kc_h_pos, uint8_t divisor) {
+void scroll_tap_codes(uint16_t st_kc_left, uint16_t st_kc_down, uint16_t st_kc_up, uint16_t st_kc_right, uint8_t divisor) {
+    // avoid div by 0
+    if (!divisor) divisor = 1;
     // Ensure larger than divisor before commiting key presses
     // Horizontal handling (RIGHT/LEFT)
-    if (abs(SCROLL_H) >= divisor) {
-        if (SCROLL_H > 0) {
+    if (abs(scroll_context.status.h) >= divisor) {
+        uint16_t taps = (uint16_t)abs(scroll_context.status.h) / divisor;
+        if (scroll_context.status.h > 0) {
             // RIGHT
-            for (int8_t i = 0; i < abs(SCROLL_H) / divisor; i++) {
-                tap_code16_delay(kc_h_pos, SCROLL_TAP_DELAY);
+            for (uint16_t i = 0; i < taps; i++) {
+                tap_code16_delay(st_kc_right, SCROLL_TAP_DELAY);
+                scroll_context.status.h -= divisor;
             }
         } else {
             // LEFT
-            for (int8_t i = 0; i < abs(SCROLL_H) / divisor; i++) {
-                tap_code16_delay(kc_h_neg, SCROLL_TAP_DELAY);
+            for (uint16_t i = 0; i < taps; i++) {
+                tap_code16_delay(st_kc_left, SCROLL_TAP_DELAY);
+                scroll_context.status.h += divisor;
             }
         }
-        // Collect residual and clear other axis
-        SET_SCROLL_H(SCROLL_H % divisor);
-        SET_SCROLL_V(0);
-        return;
-    }
-    // Vertical handling (UP/DOWN)
-    if (abs(SCROLL_V) >= divisor) {
-        if (SCROLL_V > 0) {
+        scroll_context.status.v = 0;
+        // Vertical handling (UP/DOWN)
+    } else if (abs(scroll_context.status.v) >= divisor) {
+        uint16_t taps = (uint16_t)abs(scroll_context.status.v) / divisor;
+        if (scroll_context.status.v > 0) {
             // UP
-            for (int8_t i = 0; i < abs(SCROLL_V) / divisor; i++) {
-                tap_code16_delay(kc_v_pos, SCROLL_TAP_DELAY);
+            for (uint16_t i = 0; i < taps; i++) {
+                tap_code16_delay(st_kc_up, SCROLL_TAP_DELAY);
+                scroll_context.status.v -= divisor;
             }
-
         } else {
             // DOWN
-            for (int8_t i = 0; i < abs(SCROLL_V) / divisor; i++) {
-                tap_code16_delay(kc_v_neg, SCROLL_TAP_DELAY);
+            for (uint16_t i = 0; i < taps; i++) {
+                tap_code16_delay(st_kc_down, SCROLL_TAP_DELAY);
+                scroll_context.status.v += divisor;
             }
         }
         // Collect residual and clear other axis
-        SET_SCROLL_V(SCROLL_V % divisor);
-        SET_SCROLL_H(0);
+        scroll_context.status.h = 0;
     }
 }
 
-/* Callback functions for adding processing of additional scroll modes */
-__attribute__((weak)) bool process_scroll_mode_user(uint8_t scroll_mode, report_mouse_t* mouse_report) {
-    return true;
-}
-
-__attribute__((weak)) bool process_scroll_mode_kb(uint8_t scroll_mode, report_mouse_t* mouse_report) {
-    if (!process_scroll_mode_user(scroll_mode, mouse_report)) return false;
-    return true;
-}
-
-/* process scroll modes */
-static report_mouse_t process_scroll_mode(uint8_t scroll_mode, report_mouse_t mouse_report) {
-    if (!process_scroll_mode_kb(scroll_mode, &mouse_report)) return mouse_report;
-
-    switch (scroll_mode) {
-        // Drag scroll mode (sets scroll axes to mouse_report h & v)
-        case SM_DRAG:
-            // Ensure larger than divisor to avoid collect residuals unless actually written
-            if (abs(SCROLL_H) >= SCROLL_DRAG_DIVISOR) {
-                mouse_report.h = pointing_device_hv_clamp(SCROLL_H / SCROLL_DRAG_DIVISOR);
-                SET_SCROLL_H(SCROLL_H % SCROLL_DRAG_DIVISOR);
-            }
-            if (abs(SCROLL_V) >= SCROLL_DRAG_DIVISOR) {
-                mouse_report.v = pointing_device_hv_clamp(SCROLL_V / SCROLL_DRAG_DIVISOR);
-                SET_SCROLL_V(SCROLL_V % SCROLL_DRAG_DIVISOR);
-            }
-            break;
-
-        // Caret scroll mode (uses arrow keys to move cursor)
-        case SM_CARET:
-            scroll_tap_codes(KC_LEFT, KC_DOWN, KC_UP, KC_RIGHT, SCROLL_CARET_DIVISOR);
-            break;
-
-        // Volume scroll mode (adjusts audio volume)
-        case SM_VOLUME:
-            scroll_tap_codes(KC_NO, KC_VOLD, KC_VOLU, KC_NO, SCROLL_VOL_DIVISOR);
-            break;
-
-        // History scroll mode (scroll through recent edit history)
-        case SM_HISTORY:
-            // attempt to handle macOS
-            if (keymap_config.swap_lctl_lgui && keymap_config.swap_rctl_rgui) {
-                scroll_tap_codes(SCMD(KC_Z), KC_NO, KC_NO, LCMD(KC_Z), SCROLL_HIST_DIVISOR);
-            } else {
-                scroll_tap_codes(C(KC_Z), KC_NO, KC_NO, C(KC_Y), SCROLL_HIST_DIVISOR);
-            }
-            break;
-
-        // assume erroneous scroll mode on default
-        default:
-            mouse_report         = restore_cursor(mouse_report);
-            uint8_t store_toggle = get_scroll_mode_toggle();
-            // reset
-            scroll_reset();
-            if (store_toggle == scroll_mode) break;
-            // return toggle mode
-            scroll_mode_toggle(store_toggle);
-    }
-    return mouse_report;
-}
-
-/* initiate scrolling task */
+/**
+ * @brief Core function to initiate scroll mode process
+ *
+ * Meant to be implemented in pointing_device_task
+ *
+ * @param[in] mouse_report report_mouse_t
+ *
+ * @return mouse_report report_mouse_t
+ */
 report_mouse_t pointing_device_task_scroll(report_mouse_t mouse_report) {
     // skip all processing if scroll_mode is SM_NONE
     if (get_scroll_mode() == SM_NONE) return mouse_report;
 
-    mouse_report = scroll_axes_conv(mouse_report);
-    mouse_report = process_scroll_mode(get_scroll_mode(), mouse_report);
+    mouse_report = scroll_conversion(scroll_context.status, mouse_report);
+    mouse_report = process_scroll_mode(scroll_context.status, mouse_report);
 
     return mouse_report;
 }
 
-/* Change scroll mode while held */
+/**
+ * @brief Handle processing of scroll modes
+ *
+ * Takes in report_mouse_t and scroll_status_t allowing manipulation of mouse_report
+ * and scroll_status via set_scroll_status
+ */
+static report_mouse_t process_scroll_mode(scroll_status_t scroll_status, report_mouse_t mouse_report) {
+    switch (scroll_status.mode) {
+        // Drag scroll mode (sets scroll axes to mouse_report h & v)
+        case SM_DRAG:
+            // Ensure larger than divisor to avoid collect residuals unless actually written
+            if (abs(scroll_status.h) >= SCROLL_DRAG_DIVISOR) {
+                mouse_report.h = pointing_device_hv_clamp(scroll_status.h / SCROLL_DRAG_DIVISOR);
+                scroll_status.h -= mouse_report.h * (int8_t)SCROLL_DRAG_DIVISOR;
+            } else if (abs(scroll_status.v) >= SCROLL_DRAG_DIVISOR) {
+                mouse_report.v = pointing_device_hv_clamp(scroll_status.v / SCROLL_DRAG_DIVISOR);
+                scroll_status.v -= mouse_report.v * (int8_t)SCROLL_DRAG_DIVISOR;
+            }
+            set_scroll_status(scroll_status);
+            break;
+        // Caret scroll mode (uses arrow keys to move cursor)
+        case SM_CARET:
+            scroll_tap_codes(KC_LEFT, KC_DOWN, KC_UP, KC_RIGHT, SCROLL_CARET_DIVISOR);
+            break;
+#    ifdef EXTRAKEY_ENABLE
+        // Volume scroll mode (adjusts audio volume)
+        case SM_VOLUME:
+            scroll_tap_codes(KC_NO, KC_VOLD, KC_VOLU, KC_NO, SCROLL_VOL_DIVISOR);
+            break;
+#    endif
+    }
+    return process_scroll_mode_kb(scroll_status, mouse_report);
+}
+
+/**
+ * @brief Handle scroll_mode keypress: Momentary
+ *
+ * Will set scroll mode when key is pressed and reset scroll mode
+ * on release
+ *
+ * NOTE: if scroll mode has changed since key down reset is skipped
+ *
+ * @params scroll_mode[in] uint8_t
+ * @params record[in] keyrecord_t* pointer
+ */
 void scroll_key_momentary(uint8_t scroll_mode, keyrecord_t* record) {
     if (record->event.pressed) {
         // blindly set mode
         set_scroll_mode(scroll_mode);
     } else {
-        // return to toggled mode only if the active mode matches (in case mode switched before release)
-        if (get_scroll_mode() == scroll_mode) set_scroll_mode(get_scroll_mode_toggle());
+        // reset scroll mode only if the active mode matches (in case mode has switched before release)
+        if (get_scroll_mode() == scroll_mode) scroll_reset();
     }
 }
-
-/* handle scroll mode buttons: toggle*/
+/**
+ * @brief Handle scroll_mode keypress: Toggle
+ *
+ * Toggle scroll mode on key release
+ *
+ * @params scroll_mode[in] uint8_t
+ * @params record[in] keyrecord_t* pointer
+ */
 void scroll_key_toggle(uint8_t scroll_mode, keyrecord_t* record) {
     if (!record->event.pressed) scroll_mode_toggle(scroll_mode);
 }
 
-/* handle scroll mode buttons: tap-toggle */
-void scroll_key_tap_toggle(uint8_t scroll_mode, keyrecord_t* record) {
-#    if TAPPING_TOGGLE != 0 && !defined(NO_ACTION_TAPPING)
-    if (record->event.pressed) {
-        if (record->tap.count < TAPPING_TOGGLE) scroll_mode_toggle(scroll_mode);
-    } else {
-        if (record->tap.count <= TAPPING_TOGGLE) scroll_mode_toggle(scroll_mode);
-    }
-#    elif !defined(NO_ACTION_TAPPING)
-    scroll_key_toggle(scroll_mode, record);
-#    else
-    scroll_key_momentary(scroll_mode, record);
-#    endif
-}
-
-/* handle scroll buttons: hold key while scroll mode is active */
-void scroll_key_with_hold(uint8_t scroll_mode, uint16_t kc_hold, keyrecord_t* record) {
-    if (record->event.pressed) {
-        register_code16(kc_hold);
-        set_scroll_mode(scroll_mode);
-    } else {
-        if (get_scroll_mode() == scroll_mode) set_scroll_mode(get_scroll_mode_toggle());
-        unregister_code16(kc_hold);
-    }
-}
-
-/* Add processing for built in keys */
+/**
+ * @brief Core function to process scroll mode key records
+ *
+ * Only handles built in keyrecords and functions
+ *
+ * @params keycode[in] uint16_t
+ * @params record[in] keyrecord_t pointer
+ *
+ * @return should keycode processing continue bool
+ */
 bool process_record_scroll(uint16_t keycode, keyrecord_t* record) {
     switch (keycode) {
         // handle built in keycods for bottom 16 scroll modes
         // momentary
         case SCROLL_MODE_MO_START ... SCROLL_MODE_MO_END:
-            scroll_key_momentary(((keycode - SCROLL_MODE_MO_START) + 1) & 0x0f, record);
-            return true;
+            scroll_key_momentary((keycode - SCROLL_MODE_MO_START) & 0x0f, record);
+            return true; // allow further processing
         // toggle
         case SCROLL_MODE_TG_START ... SCROLL_MODE_TG_END:
-            scroll_key_toggle(((keycode - SCROLL_MODE_TG_START) + 1) & 0x0f, record);
-            return true;
-        // tap toggle
-        case SCROLL_MODE_TT_START ... SCROLL_MODE_TT_END:
-            scroll_key_tap_toggle(((keycode - SCROLL_MODE_TT_START) + 1) & 0x0f, record);
-            return true;
+            scroll_key_toggle((keycode - SCROLL_MODE_TG_START) & 0x0f, record);
+            return true; // allow further processing
 
         default:
             return true;
     }
+}
+
+/**
+ * @brief Weak function for user level adding of scroll modes
+ *
+ * Takes scroll_status_t struct, and report_mouse_t sctruct and returns a
+ * report_mouse_t allowing updating of both scroll_satus (using
+ * set_scroll_status) and mouse_report
+ *
+ * @params scroll_status[in] scroll_status_t
+ * @params mouse_report[in] report_mouse_t
+ *
+ * @return mouse_report report_mouse_t
+ */
+__attribute__((weak)) report_mouse_t process_scroll_mode_user(scroll_status_t scroll_status, report_mouse_t mouse_report) {
+    return mouse_report;
+}
+
+/**
+ * @brief Weak function for keyboard level adding of scroll modes
+ *
+ * Takes scroll_status_t struct, and report_mouse_t sctruct and returns a
+ * report_mouse_t allowing updating of both scroll_satus (using
+ * set_scroll_status) and mouse_report
+ *
+ * @params scroll_status[in] scroll_status_t
+ * @params mouse_report[in] report_mouse_t
+ *
+ * @return mouse_report report_mouse_t
+ */
+__attribute__((weak)) report_mouse_t process_scroll_mode_kb(scroll_status_t scroll_status, report_mouse_t mouse_report) {
+    return process_scroll_mode_user(scroll_status, mouse_report);
 }
 
 #endif // POINTING_DEVICE_SCROLL_ENABLE
