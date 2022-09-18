@@ -34,11 +34,11 @@
         },
         "development_board": {
             "type": "string",
-            "enum": ["promicro", "elite_c", "proton_c", "kb2040", "promicro_rp2040", "blok", "bit_c_pro", "stemcell", "bluepill", "blackpill_f401", "blackpill_f411", "bonsai_c4"]
+            "enum": ["promicro", "elite_c", "elite_pi", "proton_c", "kb2040", "promicro_rp2040", "blok", "bit_c_pro", "stemcell", "bluepill", "blackpill_f401", "blackpill_f411", "bonsai_c4"]
         },
         "pin_compatible": {
             "type": "string",
-            "enum": ["promicro"]
+            "enum": ["promicro", "elite_c"]
         },
         "processor": {
             "type": "string",
@@ -265,6 +265,7 @@
             "type": "object",
             "properties": {
                 "driver": {"type": "string"},
+                "max_brightness": {"$ref": "qmk.definitions.v1#/unsigned_int_8"},
                 "layout": {
                     "type": "array",
                     "items": {
@@ -292,6 +293,7 @@
             "type": "object",
             "properties": {
                 "driver": {"type": "string"},
+                "max_brightness": {"$ref": "qmk.definitions.v1#/unsigned_int_8"},
                 "layout": {
                     "type": "array",
                     "items": {
@@ -387,6 +389,20 @@
                 "protocol": {
                     "type": "string",
                     "enum": ["all", "geminipr", "txbolt"]
+                }
+            }
+        },
+        "ps2": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "mouse_enabled": {"type": "boolean"},
+                "clock_pin": {"$ref": "qmk.definitions.v1#/mcu_pin"},
+                "data_pin": {"$ref": "qmk.definitions.v1#/mcu_pin"},
+                "driver": {
+                    "type": "string",
+                    "enum": ["busywait", "interrupt", "usart", "vendor"]
                 }
             }
         },
