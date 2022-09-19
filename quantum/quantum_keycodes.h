@@ -614,14 +614,13 @@ enum quantum_keycodes {
     AUTOCORRECT_ON,
     AUTOCORRECT_OFF,
     AUTOCORRECT_TOGGLE,
-  
+    
     // Pointing device scroll mode ranges supports up to scroll mode 16 - not to be used directly
     SCROLL_MODE_MO_START,
     SCROLL_MODE_MO_END = SCROLL_MODE_MO_START + 0x000f,
     SCROLL_MODE_TG_START,
     SCROLL_MODE_TG_END = SCROLL_MODE_TG_START + 0x000f,
-
-
+    
     // Start of custom keycode range for keyboards and keymaps - always leave at the end
     SAFE_RANGE
 };
