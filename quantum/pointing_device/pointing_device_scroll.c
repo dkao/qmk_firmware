@@ -173,41 +173,44 @@ void scroll_tap_codes(uint16_t st_kc_left, uint16_t st_kc_down, uint16_t st_kc_u
     // avoid div by 0
     if (!divisor) divisor = 1;
     // Ensure larger than divisor before commiting key presses
-    // Horizontal handling (RIGHT/LEFT)
-    if (abs(scroll_context.status.h) >= divisor) {
-        uint16_t taps = (uint16_t)abs(scroll_context.status.h) / divisor;
-        if (scroll_context.status.h > 0) {
+    if (abs(scroll_context.status.h) > abs(scroll_context.status.v)) {
+        // Horizontal handling (RIGHT/LEFT)
+        if (scroll_context.status.h > divisor) {
+            uint16_t taps = (uint16_t)abs(scroll_context.status.h) / divisor;
             // RIGHT
             for (uint16_t i = 0; i < taps; i++) {
                 tap_code16_delay(st_kc_right, SCROLL_TAP_DELAY);
                 scroll_context.status.h -= divisor;
             }
+            scroll_context.status.v = 0;
         } else {
+            uint16_t taps = (uint16_t)abs(scroll_context.status.h) / divisor;
             // LEFT
             for (uint16_t i = 0; i < taps; i++) {
                 tap_code16_delay(st_kc_left, SCROLL_TAP_DELAY);
                 scroll_context.status.h += divisor;
             }
+            scroll_context.status.v = 0;
         }
-        scroll_context.status.v = 0;
+    } else {
         // Vertical handling (UP/DOWN)
-    } else if (abs(scroll_context.status.v) >= divisor) {
-        uint16_t taps = (uint16_t)abs(scroll_context.status.v) / divisor;
-        if (scroll_context.status.v > 0) {
+        if (scroll_context.status.v > divisor) {
+            uint16_t taps = (uint16_t)abs(scroll_context.status.v) / divisor;
             // UP
             for (uint16_t i = 0; i < taps; i++) {
                 tap_code16_delay(st_kc_up, SCROLL_TAP_DELAY);
                 scroll_context.status.v -= divisor;
             }
+            scroll_context.status.h = 0;
         } else {
+            uint16_t taps = (uint16_t)abs(scroll_context.status.v) / divisor;
             // DOWN
             for (uint16_t i = 0; i < taps; i++) {
                 tap_code16_delay(st_kc_down, SCROLL_TAP_DELAY);
                 scroll_context.status.v += divisor;
             }
+            scroll_context.status.h = 0;
         }
-        // Collect residual and clear other axis
-        scroll_context.status.h = 0;
     }
 }
 
@@ -240,8 +243,8 @@ static report_mouse_t process_scroll_mode(scroll_status_t scroll_status, report_
     switch (scroll_status.mode) {
         // Drag scroll mode (sets scroll axes to mouse_report h & v)
         case SM_DRAG:
-            mouse_report.h  = scroll_status.h / SCROLL_DRAG_DIVISOR;
-            mouse_report.v  = scroll_status.v / SCROLL_DRAG_DIVISOR;
+            mouse_report.h = scroll_status.h / SCROLL_DRAG_DIVISOR;
+            mouse_report.v = scroll_status.v / SCROLL_DRAG_DIVISOR;
             scroll_status.v -= (int16_t)mouse_report.v * SCROLL_DRAG_DIVISOR;
             scroll_status.h -= (int16_t)mouse_report.h * SCROLL_DRAG_DIVISOR;
             set_scroll_status(scroll_status);
@@ -306,12 +309,12 @@ bool process_record_scroll(uint16_t keycode, keyrecord_t* record) {
     switch (keycode) {
         // handle built in keycods for bottom 16 scroll modes
         // momentary
-        case SCROLL_MODE_MO_START ... SCROLL_MODE_MO_END:
-            scroll_key_momentary((keycode - SCROLL_MODE_MO_START) & 0x0f, record);
+        case SCROLL_MO_START ... SCROLL_MO_END:
+            scroll_key_momentary((keycode - SCROLL_MO_START) & 0x0f, record);
             return true; // allow further processing
         // toggle
-        case SCROLL_MODE_TG_START ... SCROLL_MODE_TG_END:
-            scroll_key_toggle((keycode - SCROLL_MODE_TG_START) & 0x0f, record);
+        case SCROLL_TG_START ... SCROLL_TG_END:
+            scroll_key_toggle((keycode - SCROLL_TG_START) & 0x0f, record);
             return true; // allow further processing
 
         default:
