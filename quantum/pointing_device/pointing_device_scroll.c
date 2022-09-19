@@ -240,14 +240,10 @@ static report_mouse_t process_scroll_mode(scroll_status_t scroll_status, report_
     switch (scroll_status.mode) {
         // Drag scroll mode (sets scroll axes to mouse_report h & v)
         case SM_DRAG:
-            // Ensure larger than divisor to avoid collect residuals unless actually written
-            if (abs(scroll_status.h) >= SCROLL_DRAG_DIVISOR) {
-                mouse_report.h = pointing_device_hv_clamp(scroll_status.h / SCROLL_DRAG_DIVISOR);
-                scroll_status.h -= mouse_report.h * (int8_t)SCROLL_DRAG_DIVISOR;
-            } else if (abs(scroll_status.v) >= SCROLL_DRAG_DIVISOR) {
-                mouse_report.v = pointing_device_hv_clamp(scroll_status.v / SCROLL_DRAG_DIVISOR);
-                scroll_status.v -= mouse_report.v * (int8_t)SCROLL_DRAG_DIVISOR;
-            }
+            mouse_report.h  = scroll_status.h / SCROLL_DRAG_DIVISOR;
+            mouse_report.v  = scroll_status.v / SCROLL_DRAG_DIVISOR;
+            scroll_status.v -= (int16_t)mouse_report.v * SCROLL_DRAG_DIVISOR;
+            scroll_status.h -= (int16_t)mouse_report.h * SCROLL_DRAG_DIVISOR;
             set_scroll_status(scroll_status);
             break;
         // Caret scroll mode (uses arrow keys to move cursor)
