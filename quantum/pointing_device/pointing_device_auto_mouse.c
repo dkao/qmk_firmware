@@ -350,6 +350,12 @@ bool process_auto_mouse(uint16_t keycode, keyrecord_t* record) {
  * @return bool true: keyrecord is mousekey false: keyrecord is not mousekey
  */
 static bool is_mouse_record(uint16_t keycode, keyrecord_t* record) {
+#    ifdef POINTING_DEVICE_SCROLL_ENABLE
+    switch(keycode) {
+        case SCROLL_MO_START ... SCROLL_TG_END:
+            return true;
+    }
+#    endif
     // allow for keyboard to hook in and override if need be
     if (is_mouse_record_kb(keycode, record) || IS_MOUSEKEY(keycode)) return true;
     return false;
