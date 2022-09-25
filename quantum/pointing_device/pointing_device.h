@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "host.h"
 #include "report.h"
 
-
 #ifdef POINTING_DEVICE_SCROLL_ENABLE
 #    include "pointing_device_scroll.h"
 #endif
