@@ -557,6 +557,29 @@ bool oled_task_user(void) {
 }
 #endif
 
+void ps2_mouse_init_user(void) {
+    uint8_t rcv;
+
+#define TRACKPOINT_DEFAULT_CONFIG_PTSON   0
+#define TRACKPOINT_DEFAULT_CONFIG_BUTTON2 2
+#define TRACKPOINT_DEFAULT_CONFIG_FLIPX   3
+#define TRACKPOINT_DEFAULT_CONFIG_FLIPY   4
+#define TRACKPOINT_DEFAULT_CONFIG_FLIPZ   5
+#define TRACKPOINT_DEFAULT_CONFIG_SWAPXY  6
+#define TRACKPOINT_DEFAULT_CONFIG_FTRANS  7
+
+    // Inquire pts status from Default Configuration register
+    rcv = ps2_host_send(0xE2);
+    rcv = ps2_host_send(0x2C);
+    rcv = ps2_host_recv_response();
+    if (rcv & (1 << TRACKPOINT_DEFAULT_CONFIG_PTSON)) {
+        // If on, disable pts
+        rcv = ps2_host_send(0xE2);
+        rcv = ps2_host_send(0x47);
+        rcv = ps2_host_send(0x2C);
+        rcv = ps2_host_send(0x01);
+    }
+}
 
 // TODO: Move the speed and acceleration code into a separate function to make more modular
 // TODO: Move the drag scroll counter code into a separate function to make more modular
