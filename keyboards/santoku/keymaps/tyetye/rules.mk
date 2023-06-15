@@ -1,5 +1,5 @@
 COMBO_ENABLE = yes
-WPM_ENABLE = yes          # Uses about 800 bytes (plus code to display on OLED)
+WPM_ENABLE = no          # Uses about 800 bytes (plus code to display on OLED)
 LTO_ENABLE = yes
 GRAVE_ESC_ENABLE = no    #Uses about 82 bytes
 CONSOLE_ENABLE = no

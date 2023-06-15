@@ -22,12 +22,12 @@
 #undef LOCKING_RESYNC_ENABLE
 
 // defines for combos feature (press two keys at one time to trigger an event)
-#define COMBO_TERM  40  /* time limit in milliseconds combos need to be completed */	
+#define COMBO_TERM  40  /* time limit in milliseconds combos need to be completed */
 #define COMBO_COUNT 8
 
 // defines to help make home row mods more reliable
 #define TAPPING_TOGGLE 2  /* How many times TT(__layer__) needs to be tapped to stick */
-#define IGNORE_MOD_TAP_INTERRUPT
+//#define IGNORE_MOD_TAP_INTERRUPT   // *** No longer required by qmk (now default)
 //#define TAPPING_FORCE_HOLD
 //#define TAPPING_FORCE_HOLD_PER_KEY
 #define TAPPING_TERM 200
@@ -49,7 +49,7 @@
 //#define COMBO_ALLOW_ACTION_KEYS
 
 // defines for the mouse scroll wheel (which probably don't work for the scroll wheel because it's based on clicks instead of holding the key down)
-//#define MK_KINETIC_SPEED	
+//#define MK_KINETIC_SPEED
 //#define MK_MOMENTARY_ACCEL
 #define MOUSEKEY_DELAY	10	// Delay between pressing a movement key and cursor movement
 #define MOUSEKEY_INTERVAL	20	// Time between cursor movements in milliseconds
