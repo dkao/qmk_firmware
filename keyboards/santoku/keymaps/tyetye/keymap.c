@@ -45,6 +45,11 @@
 #include <stdbool.h>   // This is just to get rid of the linter warning
 #include <stdint.h>   // This is just to get rid of the linter warning
 
+#ifdef PS2_MOUSE_ENABLE
+#include "ps2_mouse.h"
+#include "ps2.h"
+#endif
+
 // for EEPROM to save settings between resets
 //#include "quantum.h"
 //#include "eeprom.h"
@@ -54,9 +59,6 @@
 
 #define VANITY_TIMEOUT 2500
 #define ___x___ XXXXXXX
-
-void rotate_mouse_coordinates(int angle, report_mouse_t *mouse_report);
-uint16_t mouse_rotation_angle = 350;
 
 // Santoku keymap set up
 enum santoku_layers {
@@ -71,12 +73,6 @@ enum santoku_keycodes {
     SYMBOL,
     NAVIGATION,
     FUNC,
-    //DEC_ACCL,
-    //INC_ACCL,
-    //DEC_SPED,
-    //INC_SPED,
-    //DEC_DRGS,
-    //INC_DRGS,
     OVERVIEW,
     SHFT_KEY,
     TAPALTTB,
@@ -115,6 +111,9 @@ uint8_t drag_scroll_speed_setting   = 2;
 uint8_t drag_scroll_speed_values[6] = {8, 7, 6, 5, 4, 3};
 char *  progress_bars[6]            = {"[=     ]", "[==    ]", "[===   ]", "[====  ]", "[===== ]", "[=PLAID]"};
 uint8_t scroll_wheel_test_setting   = 0;
+void rotate_mouse_coordinates(int angle, report_mouse_t *mouse_report);
+uint16_t mouse_rotation_angle = 350;
+
 enum scroll_wheel_setting{
     DEFAULT,
     DEFAULT_FASTER,
@@ -231,57 +230,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
-        /*
-        case DEC_ACCL:
-            if (record->event.pressed) {
-                if (acceleration_setting > 0) {
-                    acceleration_setting--;
-                }
-            }
-            return true; // Let QMK send the press/release events
-            break;
-
-        case INC_ACCL:
-            if (record->event.pressed) {
-                if (acceleration_setting < 5) {
-                    acceleration_setting++;
-                }
-            }
-            return true; // Let QMK send the press/release events
-
-        case DEC_SPED:
-            if (record->event.pressed) {
-                if (linear_reduction_setting > 0) {
-                    linear_reduction_setting--;
-                }
-            }
-            return true; // Let QMK send the press/release events
-
-        case INC_SPED:
-            if (record->event.pressed) {
-                if (linear_reduction_setting < 5) {
-                    linear_reduction_setting++;
-                }
-            }
-            return true; // Let QMK send the press/release events
-
-        case DEC_DRGS:
-            if (record->event.pressed) {
-                if (drag_scroll_speed_setting > 0) {
-                    drag_scroll_speed_setting--;
-                }
-            }
-            return true; // Let QMK send the press/release events
-
-        case INC_DRGS:
-            if (record->event.pressed) {
-                if (drag_scroll_speed_setting < 5) {
-                    drag_scroll_speed_setting++;
-                }
-            }
-            return true; // Let QMK send the press/release events
-            */
-
         case SHFT_KEY:
             if (is_pinky_shift_keys_active) {
                 if (record->event.pressed) {
@@ -473,9 +421,6 @@ bool oled_task_user(void) {
                 } else {
                     oled_write_P(PSTR("       QWERTY       \n"), true);
                 }
-                //oled_write_P(PSTR("WPM:"), false);
-                //oled_write(get_u8_str(get_current_wpm(), ' '), false);
-                //oled_write_ln_P(PSTR(""), false);
                 //if (your_boolean) {
                 //    oled_write_P(PSTR("your bool true\n"), false);
                 //}
@@ -547,9 +492,6 @@ bool oled_task_user(void) {
                 oled_write_ln_P(PSTR("ExpMouseSend"), current_setting_choice == EXP_SEND_MOUSE_UPDATE);
                 oled_write_ln_P(PSTR("SELECT HJKL,  EXIT /"), true);
                 break;
-
-            //default:
-            //    oled_write_ln_P(PSTR("If you see this there's a bug in the layer code :)"), false);
         }
     }
 
@@ -557,29 +499,6 @@ bool oled_task_user(void) {
 }
 #endif
 
-void ps2_mouse_init_user(void) {
-    uint8_t rcv;
-
-#define TRACKPOINT_DEFAULT_CONFIG_PTSON   0
-#define TRACKPOINT_DEFAULT_CONFIG_BUTTON2 2
-#define TRACKPOINT_DEFAULT_CONFIG_FLIPX   3
-#define TRACKPOINT_DEFAULT_CONFIG_FLIPY   4
-#define TRACKPOINT_DEFAULT_CONFIG_FLIPZ   5
-#define TRACKPOINT_DEFAULT_CONFIG_SWAPXY  6
-#define TRACKPOINT_DEFAULT_CONFIG_FTRANS  7
-
-    // Inquire pts status from Default Configuration register
-    rcv = ps2_host_send(0xE2);
-    rcv = ps2_host_send(0x2C);
-    rcv = ps2_host_recv_response();
-    if (rcv & (1 << TRACKPOINT_DEFAULT_CONFIG_PTSON)) {
-        // If on, disable pts
-        rcv = ps2_host_send(0xE2);
-        rcv = ps2_host_send(0x47);
-        rcv = ps2_host_send(0x2C);
-        rcv = ps2_host_send(0x01);
-    }
-}
 
 // TODO: Move the speed and acceleration code into a separate function to make more modular
 // TODO: Move the drag scroll counter code into a separate function to make more modular
@@ -702,11 +621,6 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
     previous_direction = clockwise;
     return true;
 }
-#endif
-
-#ifdef PS2_MOUSE_ENABLE
-#include "ps2_mouse.h"
-#include "ps2.h"
 #endif
 
 void ps2_mouse_init_user(void) {
