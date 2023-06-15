@@ -53,7 +53,7 @@ enum santoku_layers {
     _NAVIGATION,
     _FUNCTION };
 
-enum santoku_keycodes { 
+enum santoku_keycodes {
     QWERTY = SAFE_RANGE,
     SYMBOL,
     NAVIGATION,
@@ -96,14 +96,14 @@ enum scroll_wheel_setting{
 };
 
 // Combo stuff
-enum combos { 
+enum combos {
     COMBO_MCOMMADOT_FORWARDHISTORY,
-    COMBO_NMCOMM_BACKHISTORY, 
-    COMBO_HJK_CLOSETAB, 
-    COMBO_YUI_PREVTAB, 
-    COMBO_UIO_NEXTTAB, 
-    COMBO_GH_CAPSLOCK, 
-    COMBO_UI_ESCAPE, 
+    COMBO_NMCOMM_BACKHISTORY,
+    COMBO_HJK_CLOSETAB,
+    COMBO_YUI_PREVTAB,
+    COMBO_UIO_NEXTTAB,
+    COMBO_GH_CAPSLOCK,
+    COMBO_UI_ESCAPE,
     COMBO_FG_TAB,
     NUM_COMBOS    // make sure this is always the final element in the combos enum
                   // TODO: get rid of QMK's static value for this because I'm editing it too often and forgetting during debugging!!!!!!
@@ -112,7 +112,7 @@ enum combos {
 const uint16_t PROGMEM combo_yui[]       = {KC_Y, KC_U, KC_I, COMBO_END};
 const uint16_t PROGMEM combo_uio[]       = {KC_U, KC_I, KC_O, COMBO_END};
 const uint16_t PROGMEM combo_hjk[]       = {KC_H, RSFT_T(KC_J), RCTL_T(KC_K), COMBO_END};
-const uint16_t PROGMEM combo_nmcomm[]    = {KC_N, KC_M, KC_COMM, COMBO_END}; 
+const uint16_t PROGMEM combo_nmcomm[]    = {KC_N, KC_M, KC_COMM, COMBO_END};
 const uint16_t PROGMEM combo_mcommadot[] = {KC_M, KC_COMMA, KC_DOT, COMBO_END};
 const uint16_t PROGMEM combo_gh[]        = {KC_G, KC_H, COMBO_END};
 const uint16_t PROGMEM combo_ui[]        = {KC_U, KC_I, COMBO_END};
@@ -409,6 +409,29 @@ bool oled_task_user(void) {
 }
 #endif
 
+void ps2_mouse_init_user(void) {
+    uint8_t rcv;
+
+#define TRACKPOINT_DEFAULT_CONFIG_PTSON   0
+#define TRACKPOINT_DEFAULT_CONFIG_BUTTON2 2
+#define TRACKPOINT_DEFAULT_CONFIG_FLIPX   3
+#define TRACKPOINT_DEFAULT_CONFIG_FLIPY   4
+#define TRACKPOINT_DEFAULT_CONFIG_FLIPZ   5
+#define TRACKPOINT_DEFAULT_CONFIG_SWAPXY  6
+#define TRACKPOINT_DEFAULT_CONFIG_FTRANS  7
+
+    // Inquire pts status from Default Configuration register
+    rcv = ps2_host_send(0xE2);
+    rcv = ps2_host_send(0x2C);
+    rcv = ps2_host_recv_response();
+    if (rcv & (1 << TRACKPOINT_DEFAULT_CONFIG_PTSON)) {
+        // If on, disable pts
+        rcv = ps2_host_send(0xE2);
+        rcv = ps2_host_send(0x47);
+        rcv = ps2_host_send(0x2C);
+        rcv = ps2_host_send(0x01);
+    }
+}
 
 void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     // The math below turns the Trackpoint x and y reports (movements) into a vector and scales the vector with some trigonometry.
@@ -437,9 +460,9 @@ void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
 
 /*
    The Trackpoint polling causes small delays in the keyboard/matrix polling.
-   This shows up as minor tearing in the OLED redraw and 
+   This shows up as minor tearing in the OLED redraw and
    scrollwheel spinning. The code in encoder_update_user is a quick and dirty
-   attempt to try a few different methods to smooth out the variations in the 
+   attempt to try a few different methods to smooth out the variations in the
    scrollwheel readings. (It will *not* increase the actual polling rate)
    I believe this delay is deep in the QMK implementation. Also PS2 is a crotchety old standard.
 */
