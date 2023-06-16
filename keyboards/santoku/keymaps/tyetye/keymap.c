@@ -60,6 +60,7 @@
 #define VANITY_TIMEOUT 2500
 #define ___x___ XXXXXXX
 
+                                                                      //
 // Santoku keymap set up
 enum santoku_layers {
     _QWERTY,
@@ -90,6 +91,8 @@ enum settings_screen_choice {
     TP_SCROLL_SPEED,
     PINKY_SHIFT,
     EXP_SEND_MOUSE_UPDATE, /* whether to send extra mouse update after scrollwheel click */
+    //ALT_TAB_TIMEOUT,
+    //SCROLLWHEEL_DELAY, // need to come up with a better name
     NUM_SETTINGS };
 uint8_t current_setting_choice = ROTATION_ANGLE;
 
@@ -228,6 +231,33 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     }
 ,};
 
+void adjust_setting_uint16(uint16_t *setting, int adjustment, int min, int max);
+// Overly complicated add/substract function in the name of trying to make the hex smaller. (there's probably a cleaner way that still produces small hex file)
+void adjust_setting_uint16(uint16_t *setting, int adjustment, int min, int max) {
+    int range = max - min + 1;  // Calculate the range of values
+    int new_setting = *setting + adjustment;
+
+    if (new_setting > max)
+        new_setting = min + ((new_setting - max - 1) & (range - 1));
+    else if (new_setting < min)
+        new_setting = max - ((min - new_setting - 1) & (range - 1));
+
+    *setting = (uint16_t)new_setting;
+}
+void adjust_setting_uint8(uint8_t *setting, int adjustment, int min, int max);
+// Overly complicated add/substract function in the name of trying to make the hex smaller. (there's probably a cleaner way that still produces small hex file)
+void adjust_setting_uint8(uint8_t *setting, int adjustment, int min, int max) {
+    int range = max - min + 1;  // Calculate the range of values
+    int new_setting = *setting + adjustment;
+
+    if (new_setting > max)
+        new_setting = min + ((new_setting - max - 1) & (range - 1));
+    else if (new_setting < min)
+        new_setting = max - ((min - new_setting - 1) & (range - 1));
+
+    *setting = (uint8_t)new_setting;
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case SHFT_KEY:
@@ -279,57 +309,82 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return true;
 
-        case SETTINGS_LEFT:
-            if (record->event.pressed) {
-                if (current_setting_choice == ROTATION_ANGLE) {
-                    if (mouse_rotation_angle == 0) {
-                        mouse_rotation_angle = 359;
-                    } else {
-                        mouse_rotation_angle--;
-                    }
-                } else if (current_setting_choice == TP_ACCELERATION) {
-                    if (acceleration_setting > 0) {
-                        acceleration_setting--;
-                    }
-                } else if (current_setting_choice == TP_SPEED) {
-                    if (linear_reduction_setting > 0) {
-                        linear_reduction_setting--;
-                    }
-                } else if (current_setting_choice == TP_SCROLL_SPEED) {
-                    if (drag_scroll_speed_setting > 0) {
-                        drag_scroll_speed_setting--;
-                    }
-                } else if (current_setting_choice == PINKY_SHIFT) {
-                    is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
-                }
-            }
-            return true;
 
-        case SETTINGS_RIGHT:
-            if (record->event.pressed) {
-                if (current_setting_choice == ROTATION_ANGLE ) {
-                    if (mouse_rotation_angle == 359) {
-                        mouse_rotation_angle = 0;
-                    } else {
-                        mouse_rotation_angle++;
-                    }
-                } else if (current_setting_choice == TP_ACCELERATION) {
-                    if (acceleration_setting < 5) {
-                        acceleration_setting++;
-                    }
-                } else if (current_setting_choice == TP_SPEED) {
-                    if (linear_reduction_setting < 5) {
-                        linear_reduction_setting++;
-                    }
-                } else if (current_setting_choice == TP_SCROLL_SPEED) {
-                    if (drag_scroll_speed_setting < 5) {
-                        drag_scroll_speed_setting++;
-                    }
-                } else if (current_setting_choice == PINKY_SHIFT) {
-                    is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
-                }
-            }
-            return true;
+        case SETTINGS_LEFT:
+        case SETTINGS_RIGHT: {
+                                 if (record->event.pressed) {
+                                     int adjustment = (keycode == SETTINGS_LEFT) ? -1 : 1;
+                                     if (current_setting_choice == ROTATION_ANGLE) {
+                                         adjust_setting_uint16(&mouse_rotation_angle, adjustment, 0, 359);
+                                     }
+                                     else if (current_setting_choice == TP_ACCELERATION) {
+                                         adjust_setting_uint8(&acceleration_setting, adjustment, 0, 5);
+                                     }
+                                     else if (current_setting_choice == TP_SPEED) {
+                                         adjust_setting_uint8(&linear_reduction_setting, adjustment, 0, 5);
+                                     }
+                                     else if (current_setting_choice == TP_SCROLL_SPEED) {
+                                         adjust_setting_uint8(&drag_scroll_speed_setting, adjustment, 0, 5);
+                                     }
+                                     else if (current_setting_choice == PINKY_SHIFT) {
+                                         is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
+                                     }
+                                 }
+                                 return true;
+                             }
+
+
+        //case SETTINGS_LEFT:
+        //    if (record->event.pressed) {
+        //        if (current_setting_choice == ROTATION_ANGLE) {
+        //            if (mouse_rotation_angle == 0) {
+        //                mouse_rotation_angle = 359;
+        //            } else {
+        //                mouse_rotation_angle--;
+        //            }
+        //        } else if (current_setting_choice == TP_ACCELERATION) {
+        //            if (acceleration_setting > 0) {
+        //                acceleration_setting--;
+        //            }
+        //        } else if (current_setting_choice == TP_SPEED) {
+        //            if (linear_reduction_setting > 0) {
+        //                linear_reduction_setting--;
+        //            }
+        //        } else if (current_setting_choice == TP_SCROLL_SPEED) {
+        //            if (drag_scroll_speed_setting > 0) {
+        //                drag_scroll_speed_setting--;
+        //            }
+        //        } else if (current_setting_choice == PINKY_SHIFT) {
+        //            is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
+        //        }
+        //    }
+        //    return true;
+
+        //case SETTINGS_RIGHT:
+        //    if (record->event.pressed) {
+        //        if (current_setting_choice == ROTATION_ANGLE ) {
+        //            if (mouse_rotation_angle == 359) {
+        //                mouse_rotation_angle = 0;
+        //            } else {
+        //                mouse_rotation_angle++;
+        //            }
+        //        } else if (current_setting_choice == TP_ACCELERATION) {
+        //            if (acceleration_setting < 5) {
+        //                acceleration_setting++;
+        //            }
+        //        } else if (current_setting_choice == TP_SPEED) {
+        //            if (linear_reduction_setting < 5) {
+        //                linear_reduction_setting++;
+        //            }
+        //        } else if (current_setting_choice == TP_SCROLL_SPEED) {
+        //            if (drag_scroll_speed_setting < 5) {
+        //                drag_scroll_speed_setting++;
+        //            }
+        //        } else if (current_setting_choice == PINKY_SHIFT) {
+        //            is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
+        //        }
+        //    }
+        //    return true;
 
         case A_B_TEST:
             if (record->event.pressed) {
@@ -421,6 +476,7 @@ bool oled_task_user(void) {
                 } else {
                     oled_write_P(PSTR("       QWERTY       \n"), true);
                 }
+                oled_write_ln_P(PSTR(""), false);
                 //if (your_boolean) {
                 //    oled_write_P(PSTR("your bool true\n"), false);
                 //}
