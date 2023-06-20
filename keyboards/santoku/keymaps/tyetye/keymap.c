@@ -16,27 +16,38 @@
 
 /*
  * Current features of this keymap for the Santoku keyboard:
- Trackpoint speed and acceleration settings are adjustable on-the-fly from the Function layer.
- Trackpoint drag scroll speed is adjustable on-the-fly from the Function layer.
- Mouse input from the Trackpoint is smoothed and scaled in realtime (through the features noted above).
- Combos provide easy web browser tab navigation with only the right hand (no reaching for ctrl-blah).
- Home row mod keys (SHFT, CTL, ALT, GUI).
- TAPALTTB for easy switching to open windows using just one key (an improvement on the "Super Alt Tab" example code from the QMK docs).
- "Caps Word" feature intelligently turns off CAPSLOCK when a non alphnumeric key is pressed (wonderful QMK feature).
- Traditional shift keys in the lower corners are togglable (on or off). This helps the user to ease the transition to home row mods while still allowing the user to be productive during crunch time.
+Trackpoint:
+    - Speed, Acceleration, and Angle are adjustable on-the-fly from the Settings Screen.
+    - Drag Scroll (aka Middle Click Scroll) speed is adjustable on-the-fly from the Settings Screen
 
- * Desired TODOs:
- Write to memory so Trackpoint speed and scroll settings stick between keyboard reboots
- IN PROGRESS. Improve SuperAltTab feature so that holding down the key *does not* move to the next window but keeps Alt pressed. Window gets selected *only* after timeout (~1000ms).
- -- This will allow the user to "look through" the AltTab choices without having to worry about quickly selecting one because of the timeout.
- -- But will still also allow the user to easily tap the key once and quickly toggle between the two most recent windows.
- Update the mouse pointer smoothing code to use integer math instead of floating point math. This will probably require some clever log lookup tables but could save up to 1000 bytes in the compiled hex.
- IN TESTING. Change the scroll wheel to use QMK's Pointing Device feature instead of MouseKeys. In theory, this will make the scroll wheel movement smoother because Mouse Keys expect a held down keyswitch instead of a clicky rotary encoder.
- Create a dedicated "help" screen. This will take a lot of bytes because of raw text. Still uncertain how to approach this.
- Add sidescroll ability to the scrollwheel.
- Slowly make options to test the transition to a 36 key layout (make alternatives to the outer columns)
- -- Make ALTTAB delay variable and add ALTTAB timeout setting to settings page (yet another reason to have a dedicated settings page.
- -- Add custom Santoku logo to the OLED.
+Settings Screen:
+    - Dedicated Settings screen and keyboard layer. Settings are scrollable up/down.
+
+Combos:
+    - Combos provide easy web browser tab navigation with only the right hand (no reaching for ctrl-blah).
+
+Home Row Mods:
+    - Home Row Keys provide easy to reach mods (SHFT, CTL, ALT, GUI).
+
+One Tap Alt-Tab:
+    - TAPALTTB for easy switching to open windows using just one key
+        - (an improvement on the "Super Alt Tab" example code from the QMK docs).
+
+Caps Word:
+    - "Caps Word" feature intelligently turns off CAPSLOCK when a non alphnumeric key is pressed (wonderful QMK feature).
+
+Pinky Shift Keys:
+    - Traditional shift keys in the lower corners are togglable (on or off) from the Settings Screen.
+        - This helps the user to ease the transition to home row mods while still allowing the user to be productive during crunch time.
+
+Desired TODOs:
+    - IN PROGRESS: Write to memory (EEPROM) so Trackpoint speed and scroll settings stick between keyboard reboots
+    - IN PROGRESS/TESTING. Change the scroll wheel to use QMK's Pointing Device feature instead of MouseKeys. In theory, this will make the scroll wheel movement smoother because Mouse Keys expect a held down keyswitch instead of a clicky rotary encoder.
+    - IN PROGRESS: Add custom Santoku logo to the OLED.
+
+    - Update the mouse pointer smoothing code to use integer math instead of floating point math. This will probably require some clever lookup tables but could save up to 1000 bytes in the compiled hex.
+    - Add sidescroll ability to the scrollwheel.
+    - Slowly make options to test the transition to a 36 key layout (make alternatives to the outer columns)
 
 */
 
@@ -57,17 +68,23 @@
 //bool your_boolean; // The value you want to store
 //uint8_t eeprom_value;
 
-#define VANITY_TIMEOUT 2500
+#define VANITY_TIMEOUT 5000
 #define ___x___ XXXXXXX
 
-                                                                      //
+void scroll_settings(int8_t direction);
+void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report);
+void update_settings_display(void);
+void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max);
+void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max);
+
 // Santoku keymap set up
 enum santoku_layers {
     _QWERTY,
     _SYMBOL,
     _NAVIGATION,
     _FUNCTION,
-    _SETTINGS };
+    _SETTINGS
+};
 
 enum santoku_keycodes {
     QWERTY = SAFE_RANGE,
@@ -82,25 +99,70 @@ enum santoku_keycodes {
     SETTINGS_LEFT,
     SETTINGS_RIGHT,
     SETTINGS_SELECT,
-    A_B_TEST };
+    A_B_TEST
+};
 
-enum settings_screen_choice {
-    ROTATION_ANGLE,
-    TP_ACCELERATION,
-    TP_SPEED,
-    TP_SCROLL_SPEED,
-    PINKY_SHIFT,
-    EXP_SEND_MOUSE_UPDATE, /* whether to send extra mouse update after scrollwheel click */
-    //ALT_TAB_TIMEOUT,
-    //SCROLLWHEEL_DELAY, // need to come up with a better name
-    NUM_SETTINGS };
-uint8_t current_setting_choice = ROTATION_ANGLE;
+//enum settings_screen_choice {
+//    ROTATION_ANGLE,
+//    TP_ACCELERATION,
+//    TP_SPEED,
+//    TP_SCROLL_SPEED,
+//    PINKY_SHIFT,
+//    EXP_SEND_MOUSE_UPDATE, /* whether to send extra mouse update after scrollwheel click */
+//    //ALT_TAB_TIMEOUT,
+//    //SCROLLWHEEL_DELAY, // need to come up with a better name
+//    NUM_SETTINGS };
 
+#define MAX_DISPLAY_ROWS 4
+
+int8_t settings_scroll_position = 0;
+int8_t settings_selected_setting = 0;
+
+typedef enum {
+    SETTING_TP_ACCELERATION,
+    SETTING_TP_SPEED,
+    SETTING_TP_SCROLL_SPEED,
+    SETTING_ROTATION_ANGLE,
+    SETTING_PINKY_SHIFT,
+    SETTING_ALT_TAB_TIMEOUT,
+    SETTING_DEFAULT_LAYOUT,
+    SETTING_OPERATING_SYSTEM,
+    SETTING_EXP_SEND_MOUSE_UPDATE,
+    SETTING_SCROLLWHEEL_DELAY,
+    NUM_SETTINGS  // make sure this is always the final element in the enum
+} setting_id_t;
+uint8_t current_setting_choice = 0;
+
+typedef struct {
+    setting_id_t id;
+    const char* name;
+    void (*display_func)(setting_id_t id, bool is_current);
+} setting_t;
+
+// Forward declarations of display functions
+void display_placeholder(setting_id_t id, bool is_current);
+void display_int(setting_id_t id, bool is_current);
+void display_progress_x6(setting_id_t id, bool is_current);
+void display_bool(setting_id_t id, bool is_current);
+
+
+setting_t settings[NUM_SETTINGS] = {
+    {SETTING_TP_ACCELERATION,       "TP Accel    ",      display_progress_x6},
+    {SETTING_TP_SPEED,              "TP Speed    ",      display_progress_x6},
+    {SETTING_TP_SCROLL_SPEED,       "TP Scroll   ",      display_progress_x6},
+    {SETTING_ROTATION_ANGLE,        "TP Rotate      ",   display_int},
+    {SETTING_PINKY_SHIFT,           "Pinky Shift      ", display_bool},
+    {SETTING_ALT_TAB_TIMEOUT,       "AltTab Time    ",   display_int},
+    {SETTING_DEFAULT_LAYOUT,        "Def Layout  ",      display_placeholder},
+    {SETTING_OPERATING_SYSTEM,      "Oper System ",      display_placeholder},
+    {SETTING_EXP_SEND_MOUSE_UPDATE, "EX MouseUpd ",      display_placeholder},
+    {SETTING_SCROLLWHEEL_DELAY,     "ScrlWhlDel     ",   display_int}
+};
 
 // One tap alt-tab controls. Improvement to the code example from: https://docs.qmk.fm/#/feature_macros?id=super-alt%e2%86%aftab
-bool     is_alt_tab_pressed    = false;
-uint16_t alt_tab_timer         = 0;
-const uint16_t ALT_TAB_TIMEOUT = 300;
+bool     is_alt_tab_pressed = false;
+uint16_t alt_tab_timer      = 0;
+uint16_t alt_tab_timeout    = 300;
 
 // toggles the typical shift keys (in lower corners). Useful when learning to use homerow mod's shift keys but still need to be productive at day job.
 bool is_pinky_shift_keys_active = true;
@@ -112,9 +174,8 @@ uint8_t linear_reduction_setting    = 2;
 float   linear_reduction_values[6]  = {2.4f, 2.2f, 2.0f, 1.8f, 1.6f, 1.4f};
 uint8_t drag_scroll_speed_setting   = 2;
 uint8_t drag_scroll_speed_values[6] = {8, 7, 6, 5, 4, 3};
-char *  progress_bars[6]            = {"[=     ]", "[==    ]", "[===   ]", "[====  ]", "[===== ]", "[=PLAID]"};
+char *  progress_bars_x6[6]         = {"[=     ]", "[==    ]", "[===   ]", "[====  ]", "[===== ]", "[=PLAID]"};
 uint8_t scroll_wheel_test_setting   = 0;
-void rotate_mouse_coordinates(int angle, report_mouse_t *mouse_report);
 uint16_t mouse_rotation_angle = 350;
 
 enum scroll_wheel_setting{
@@ -156,40 +217,42 @@ combo_t key_combos[NUM_COMBOS] = {
     [COMBO_FG_TAB] = COMBO_ACTION(combo_fg)
 };
 
+// This logo uses about 7% of the entire available memory on the atmega32u4
+// TODO: Research overwriting QMK's built in font set to make better settings screen and reduce this logo's space requirements
 const char PROGMEM santoku_logo[] = {
     // 'Santoku_logo_bold_text', 128x32px
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa0, 0xd0, 0xe8, 0xf4, 0x7a, 0x3d, 0xfd, 0xfd, 0xfc,
-0xfa, 0xf4, 0xe8, 0xd0, 0xa0, 0x40, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0xe0, 0x08, 0xf4, 0xf8, 0xfc, 0x1e, 0xcf, 0xe7, 0xf3, 0xf9, 0x7c, 0xbe, 0xdf, 0xef, 0xe7, 0xf7,
-0xf7, 0x77, 0xf7, 0xf7, 0xef, 0xcf, 0x3e, 0xfd, 0xfa, 0xe4, 0x10, 0x00, 0x00, 0x00, 0x10, 0xfc,
-0x82, 0x01, 0x01, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x20, 0x20, 0xc0, 0x00, 0x00,
-0xf0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0xf0, 0x00, 0xe0, 0x10, 0x10,
-0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0xe0, 0x00, 0x10, 0x10, 0x10, 0x10, 0x10,
-0x10, 0xf0, 0x10, 0x10, 0x10, 0x10, 0x10, 0x00, 0xe0, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
-0x10, 0x10, 0x10, 0x10, 0xf0, 0x00, 0xf0, 0x80, 0x80, 0x40, 0x40, 0x40, 0x40, 0x20, 0x20, 0x20,
-0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0,
-0x03, 0x10, 0x2f, 0x5f, 0xbf, 0x78, 0xf3, 0xe7, 0xef, 0xef, 0xef, 0xef, 0xef, 0xf7, 0xfb, 0xfd,
-0x7e, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0x7c, 0xbf, 0x5f, 0x27, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x01, 0x41, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x20, 0x20, 0x30, 0x1c, 0x07, 0x00,
-0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x00, 0x3f, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x20, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
-0x40, 0x40, 0x40, 0x20, 0x3f, 0x00, 0x7f, 0x01, 0x03, 0x02, 0x04, 0x04, 0x08, 0x08, 0x10, 0x30,
-0x20, 0x40, 0x00, 0x00, 0x20, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x20, 0x3f,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x05, 0x0b, 0x17, 0x2f, 0x5f, 0xbf, 0xbf, 0xbf, 0x1e,
-0x1f, 0x0f, 0x17, 0x0b, 0x05, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa0, 0xd0, 0xe8, 0xf4, 0x7a, 0x3d, 0xfd, 0xfd, 0xfc,
+    0xfa, 0xf4, 0xe8, 0xd0, 0xa0, 0x40, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xe0, 0x08, 0xf4, 0xf8, 0xfc, 0x1e, 0xcf, 0xe7, 0xf3, 0xf9, 0x7c, 0xbe, 0xdf, 0xef, 0xe7, 0xf7,
+    0xf7, 0x77, 0xf7, 0xf7, 0xef, 0xcf, 0x3e, 0xfd, 0xfa, 0xe4, 0x10, 0x00, 0x00, 0x00, 0x10, 0xfc,
+    0x82, 0x01, 0x01, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x20, 0x20, 0xc0, 0x00, 0x00,
+    0xf0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0xf0, 0x00, 0xe0, 0x10, 0x10,
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0xe0, 0x00, 0x10, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0xf0, 0x10, 0x10, 0x10, 0x10, 0x10, 0x00, 0xe0, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0x10, 0x10, 0x10, 0xf0, 0x00, 0xf0, 0x80, 0x80, 0x40, 0x40, 0x40, 0x40, 0x20, 0x20, 0x20,
+    0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0,
+    0x03, 0x10, 0x2f, 0x5f, 0xbf, 0x78, 0xf3, 0xe7, 0xef, 0xef, 0xef, 0xef, 0xef, 0xf7, 0xfb, 0xfd,
+    0x7e, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0x7c, 0xbf, 0x5f, 0x27, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x41, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x20, 0x20, 0x30, 0x1c, 0x07, 0x00,
+    0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x00, 0x3f, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x20, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
+    0x40, 0x40, 0x40, 0x20, 0x3f, 0x00, 0x7f, 0x01, 0x03, 0x02, 0x04, 0x04, 0x08, 0x08, 0x10, 0x30,
+    0x20, 0x40, 0x00, 0x00, 0x20, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x20, 0x3f,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x05, 0x0b, 0x17, 0x2f, 0x5f, 0xbf, 0xbf, 0xbf, 0x1e,
+    0x1f, 0x0f, 0x17, 0x0b, 0x05, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 // Santoku keymap layout
@@ -229,33 +292,121 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, TO(_QWERTY), ___x___},
         {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, SETTINGS_SELECT, ___x___, ___x___, ___x___}
     }
-,};
+    ,};
 
-void adjust_setting_uint16(uint16_t *setting, int adjustment, int min, int max);
-// Overly complicated add/substract function in the name of trying to make the hex smaller. (there's probably a cleaner way that still produces small hex file)
-void adjust_setting_uint16(uint16_t *setting, int adjustment, int min, int max) {
-    int range = max - min + 1;  // Calculate the range of values
-    int new_setting = *setting + adjustment;
 
-    if (new_setting > max)
-        new_setting = min + ((new_setting - max - 1) & (range - 1));
-    else if (new_setting < min)
-        new_setting = max - ((min - new_setting - 1) & (range - 1));
-
-    *setting = (uint16_t)new_setting;
+// TODO: Make better way to handle this for uint16_t AND ALSO uint8_t
+void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max) {
+    if (adjustment == -1 && *setting == min) {
+        *setting = max;
+    }
+    else if (adjustment == 1 && *setting == max) {
+        *setting = min;
+    }
+    else {
+        //*setting += adjustment;
+        uint16_t new_value = *setting + adjustment;
+        if (new_value > max)
+            *setting = min;
+        else if (new_value < min)
+            *setting = max;
+        else
+            *setting = new_value;
+    }
 }
-void adjust_setting_uint8(uint8_t *setting, int adjustment, int min, int max);
-// Overly complicated add/substract function in the name of trying to make the hex smaller. (there's probably a cleaner way that still produces small hex file)
-void adjust_setting_uint8(uint8_t *setting, int adjustment, int min, int max) {
-    int range = max - min + 1;  // Calculate the range of values
-    int new_setting = *setting + adjustment;
 
-    if (new_setting > max)
-        new_setting = min + ((new_setting - max - 1) & (range - 1));
-    else if (new_setting < min)
-        new_setting = max - ((min - new_setting - 1) & (range - 1));
+void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max) {
+    if (adjustment == -1 && *setting == min) {
+        *setting = max;
+    }
+    else if (adjustment == 1 && *setting == max) {
+        *setting = min;
+    }
+    else {
+        //*setting += adjustment;
+        uint16_t new_value = *setting + adjustment;
+        if (new_value > max)
+            *setting = min;
+        else if (new_value < min)
+            *setting = max;
+        else
+            *setting = new_value;
+    }
+}
 
-    *setting = (uint8_t)new_setting;
+
+
+// Handles scrolling up and down through the choices on the Settings layer/screen
+void scroll_settings(int8_t direction) {
+    settings_scroll_position += direction;
+    settings_selected_setting += direction;
+
+    int8_t max_scroll_position = NUM_SETTINGS > MAX_DISPLAY_ROWS ? NUM_SETTINGS - MAX_DISPLAY_ROWS : 0;
+    int8_t max_selected_setting = NUM_SETTINGS - 1;
+
+    // handle edge cases
+    if (settings_scroll_position < 0) settings_scroll_position = 0;
+    if (settings_scroll_position > max_scroll_position) settings_scroll_position = max_scroll_position;
+    if (settings_selected_setting < 0) settings_selected_setting = 0;
+    if (settings_selected_setting > max_selected_setting) settings_selected_setting = max_selected_setting;
+}
+
+// Loops through the visible Settings on the Settings screen to display them
+void update_settings_display() {
+    //static char * temp_progress_bars[9] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
+    for (uint8_t i = 0; i < MAX_DISPLAY_ROWS; i++) {
+        uint8_t setting_index = settings_scroll_position + i;
+        if (setting_index < NUM_SETTINGS) {
+            oled_write(settings[setting_index].name, settings_selected_setting == setting_index);
+            settings[setting_index].display_func(settings[setting_index].id, settings_selected_setting == setting_index);
+        }
+    }
+}
+
+// Used by update_display_settings to show Progress Bar settings
+void display_progress_x6(setting_id_t id, bool is_current) {
+    int value;
+    switch (id) {
+        case SETTING_TP_ACCELERATION: value = acceleration_setting; break;
+        case SETTING_TP_SPEED: value = linear_reduction_setting; break;
+        case SETTING_TP_SCROLL_SPEED: value = drag_scroll_speed_setting; break;
+        default: value = 1;
+    }
+
+    oled_write_ln(progress_bars_x6[value], is_current);
+}
+
+// Used by update_display_settings to show boolean settings
+void display_bool(setting_id_t id, bool is_current) {
+    bool value;
+    switch (id) {
+        case SETTING_PINKY_SHIFT: value = is_pinky_shift_keys_active; break;
+        default: value = false;
+    }
+    if (value) {
+        oled_write_ln_P(PSTR("Yes"), is_current);
+    } else {
+        oled_write_ln_P(PSTR(" No"), is_current);
+    }
+}
+
+
+// Used by update_display_settings to show integer settings
+void display_int(setting_id_t id, bool is_current) {
+    int value;
+    switch (id) {
+        case SETTING_ROTATION_ANGLE: value = mouse_rotation_angle; break;
+        case SETTING_ALT_TAB_TIMEOUT: value = alt_tab_timeout; break;
+        default: value = 7;
+    }
+
+    oled_write(get_u16_str(value, ' '), is_current);
+    oled_write_ln_P(PSTR(""), false);
+}
+
+// Used by update_display_settings to provide some text for Settings that aren't finished yet.
+void display_placeholder(setting_id_t id, bool is_current) {
+    oled_write_ln_P(PSTR("Not Done"), is_current);
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -269,7 +420,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             return true; // Let QMK send the press/release events
-            break;
 
         case OVERVIEW:
             // Macro to handle overview mode. Enter overview, wait, then skip to window after current window
@@ -294,106 +444,46 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return true;
 
         case SETTINGS_UP:
-            if (record->event.pressed) {
-                if (current_setting_choice > 0) {
-                    current_setting_choice--;
-                }
-            }
-            return true;
-
         case SETTINGS_DOWN:
             if (record->event.pressed) {
-                if (current_setting_choice < NUM_SETTINGS - 1 ) {
-                    current_setting_choice++;
-                }
+                scroll_settings(keycode == SETTINGS_UP ? -1 : 1);
             }
             return true;
-
 
         case SETTINGS_LEFT:
         case SETTINGS_RIGHT: {
                                  if (record->event.pressed) {
-                                     int adjustment = (keycode == SETTINGS_LEFT) ? -1 : 1;
-                                     if (current_setting_choice == ROTATION_ANGLE) {
+                                     int8_t adjustment = (keycode == SETTINGS_LEFT) ? -1 : 1;
+                                     if (settings_selected_setting == SETTING_ROTATION_ANGLE) {
                                          adjust_setting_uint16(&mouse_rotation_angle, adjustment, 0, 359);
                                      }
-                                     else if (current_setting_choice == TP_ACCELERATION) {
+                                     else if (settings_selected_setting == SETTING_ALT_TAB_TIMEOUT) {
+                                         adjust_setting_uint16(&alt_tab_timeout, adjustment * 25, 100, 1200);
+                                     }
+                                     else if (settings_selected_setting == SETTING_TP_ACCELERATION) {
                                          adjust_setting_uint8(&acceleration_setting, adjustment, 0, 5);
                                      }
-                                     else if (current_setting_choice == TP_SPEED) {
+                                     else if (settings_selected_setting == SETTING_TP_SPEED) {
                                          adjust_setting_uint8(&linear_reduction_setting, adjustment, 0, 5);
                                      }
-                                     else if (current_setting_choice == TP_SCROLL_SPEED) {
+                                     else if (settings_selected_setting == SETTING_TP_SCROLL_SPEED) {
                                          adjust_setting_uint8(&drag_scroll_speed_setting, adjustment, 0, 5);
                                      }
-                                     else if (current_setting_choice == PINKY_SHIFT) {
+                                     else if (settings_selected_setting == SETTING_PINKY_SHIFT) {
                                          is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
                                      }
                                  }
                                  return true;
                              }
 
-
-        //case SETTINGS_LEFT:
-        //    if (record->event.pressed) {
-        //        if (current_setting_choice == ROTATION_ANGLE) {
-        //            if (mouse_rotation_angle == 0) {
-        //                mouse_rotation_angle = 359;
-        //            } else {
-        //                mouse_rotation_angle--;
-        //            }
-        //        } else if (current_setting_choice == TP_ACCELERATION) {
-        //            if (acceleration_setting > 0) {
-        //                acceleration_setting--;
-        //            }
-        //        } else if (current_setting_choice == TP_SPEED) {
-        //            if (linear_reduction_setting > 0) {
-        //                linear_reduction_setting--;
-        //            }
-        //        } else if (current_setting_choice == TP_SCROLL_SPEED) {
-        //            if (drag_scroll_speed_setting > 0) {
-        //                drag_scroll_speed_setting--;
-        //            }
-        //        } else if (current_setting_choice == PINKY_SHIFT) {
-        //            is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
-        //        }
-        //    }
-        //    return true;
-
-        //case SETTINGS_RIGHT:
-        //    if (record->event.pressed) {
-        //        if (current_setting_choice == ROTATION_ANGLE ) {
-        //            if (mouse_rotation_angle == 359) {
-        //                mouse_rotation_angle = 0;
-        //            } else {
-        //                mouse_rotation_angle++;
-        //            }
-        //        } else if (current_setting_choice == TP_ACCELERATION) {
-        //            if (acceleration_setting < 5) {
-        //                acceleration_setting++;
-        //            }
-        //        } else if (current_setting_choice == TP_SPEED) {
-        //            if (linear_reduction_setting < 5) {
-        //                linear_reduction_setting++;
-        //            }
-        //        } else if (current_setting_choice == TP_SCROLL_SPEED) {
-        //            if (drag_scroll_speed_setting < 5) {
-        //                drag_scroll_speed_setting++;
-        //            }
-        //        } else if (current_setting_choice == PINKY_SHIFT) {
-        //            is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
-        //        }
-        //    }
-        //    return true;
-
         case A_B_TEST:
-            if (record->event.pressed) {
-                scroll_wheel_test_setting++;
-                if (scroll_wheel_test_setting > FANCY2) {
-                    scroll_wheel_test_setting = 0;
-                }
-            }
-            return true;
+                             if (record->event.pressed) {
+                                 scroll_wheel_test_setting++;
+                                 if (scroll_wheel_test_setting > FANCY2) {
+                                     scroll_wheel_test_setting = 0;
+                                 }
+                             }
+                             return true;
     }
     return true;
 }
@@ -444,7 +534,7 @@ void process_combo_event(uint16_t combo_index, bool pressed) {
 
 // This is currently only used for the TAPALTTB feature
 void matrix_scan_user(void) {
-    if (!is_alt_tab_pressed && timer_elapsed(alt_tab_timer) > ALT_TAB_TIMEOUT) {
+    if (!is_alt_tab_pressed && timer_elapsed(alt_tab_timer) > alt_tab_timeout) {
         unregister_code(KC_LALT);
     }
 }
@@ -463,26 +553,19 @@ bool oled_task_user(void) {
             show_vanity_text = false;
         }
     }
-    else if (is_alt_tab_pressed ) {
-        oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
-    }
     else {
         switch (get_highest_layer(layer_state)) {
             case _QWERTY:
-                if ((host_keyboard_leds() & (1<<USB_LED_CAPS_LOCK))) {
-                    oled_write_P(PSTR("      Caps Lock     \n"), true);
+                if (is_alt_tab_pressed || timer_elapsed(alt_tab_timer) < alt_tab_timeout) {
+                    oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
+                } else if ((host_keyboard_leds() & (1<<USB_LED_CAPS_LOCK))) {
+                    oled_write_ln_P(PSTR("      Caps Lock     "), true);
                 } else if ( is_caps_word_on() ) {
-                    oled_write_P(PSTR("      Caps Word     \n"), true);
+                    oled_write_ln_P(PSTR("      Caps Word     "), true);
                 } else {
-                    oled_write_P(PSTR("       QWERTY       \n"), true);
+                    oled_write_ln_P(PSTR("       QWERTY       "), true);
                 }
                 oled_write_ln_P(PSTR(""), false);
-                //if (your_boolean) {
-                //    oled_write_P(PSTR("your bool true\n"), false);
-                //}
-                //else {
-                //    oled_write_P(PSTR("your bool false\n"), false);
-                //}
                 oled_write_ln_P(PSTR("TB  qwert | yuiop\\"), false);
                 oled_write_ln_P(PSTR("ES  asdfg | hjkl;'"), false);
                 oled_write_ln_P(PSTR("SH  zxcvb | nm,./"), false);
@@ -492,7 +575,7 @@ bool oled_task_user(void) {
                 break;
 
             case _SYMBOL:
-                oled_write_P(   PSTR("       Symbol       \n"), true);
+                oled_write_ln_P(PSTR("       Symbol       "), true);
                 oled_write_ln_P(PSTR(""), false);
                 oled_write_ln_P(PSTR(" `  !@#$% | ^&*()-"), false);
                 oled_write_ln_P(PSTR("ES  12345 | 67890="), false);
@@ -504,7 +587,7 @@ bool oled_task_user(void) {
 
             case _NAVIGATION:
                 // TODO: Research how to display graphic characters in QMK font instead of using <<, >>, D[, etc
-                oled_write_P(   PSTR("     Navigation     \n"), true);
+                oled_write_ln_P(PSTR("     Navigation     "), true);
                 oled_write_ln_P(PSTR(""), false);
                 oled_write_ln_P(PSTR("       | HM PD PU EN"), false);
                 oled_write_ln_P(PSTR("       | << vv ^^ >>"), false);
@@ -515,9 +598,7 @@ bool oled_task_user(void) {
                 break;
 
             case _FUNCTION:
-                oled_write_P(   PSTR("      Function      \n"), true);
-                //oled_write_P(   PSTR("SCROLLWHEEL TEST:"), false);
-                //oled_write(get_u8_str(scroll_wheel_test_setting, ' '), false);
+                oled_write_ln_P(PSTR("      Function      "), true);
                 oled_write_ln_P(PSTR(""), false);
                 oled_write_ln_P(PSTR("          |"), false);
                 oled_write_ln_P(PSTR("ES F12345 | 67890"), false);
@@ -528,25 +609,11 @@ bool oled_task_user(void) {
                 break;
 
             case _SETTINGS:
-                oled_write_P(   PSTR("      Options       \n"), true);
-                oled_write_P(PSTR("TP Rotate "), current_setting_choice == ROTATION_ANGLE);
-                oled_write(get_u16_str(mouse_rotation_angle, ' '), current_setting_choice == ROTATION_ANGLE);
+                oled_write_ln_P(PSTR("      Options       "), true);
                 oled_write_ln_P(PSTR(""), false);
-                oled_write_P(PSTR("TP Accel    "), current_setting_choice == TP_ACCELERATION);
-                oled_write_ln(progress_bars[acceleration_setting], current_setting_choice == TP_ACCELERATION);
-                oled_write_P(PSTR("TP Speed    "), current_setting_choice == TP_SPEED);
-                oled_write_ln(progress_bars[linear_reduction_setting], current_setting_choice == TP_SPEED);
-                oled_write_P(PSTR("TP Scroll   "), current_setting_choice == TP_SCROLL_SPEED);
-                oled_write_ln(progress_bars[drag_scroll_speed_setting], current_setting_choice == TP_SCROLL_SPEED);
-                oled_write_P(PSTR("Pinky Shift "),                         current_setting_choice == PINKY_SHIFT);
-                if (is_pinky_shift_keys_active) {
-                    oled_write_P(PSTR("Yes\n"), current_setting_choice == PINKY_SHIFT);
-                }
-                else {
-                    oled_write_P(PSTR("No\n"), current_setting_choice == PINKY_SHIFT);
-                }
-                oled_write_ln_P(PSTR("ExpMouseSend"), current_setting_choice == EXP_SEND_MOUSE_UPDATE);
-                oled_write_ln_P(PSTR("SELECT HJKL,  EXIT /"), true);
+                update_settings_display();
+                oled_write_ln_P(PSTR(""), false);
+                oled_write_ln_P(PSTR("SELECT HJKL,  EXIT /"), false);
                 break;
         }
     }
@@ -554,6 +621,7 @@ bool oled_task_user(void) {
     return false;
 }
 #endif
+
 
 
 // TODO: Move the speed and acceleration code into a separate function to make more modular
@@ -583,7 +651,7 @@ void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     }
 }
 
-void rotate_mouse_coordinates(int angle, report_mouse_t *mouse_report) {
+void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report) {
     // because pi/180 = 0.017453
     static const float degree = 0.017453f;
 
@@ -608,7 +676,7 @@ void rotate_mouse_coordinates(int angle, report_mouse_t *mouse_report) {
    attempt to try a few different methods to smooth out the variations in the
    scrollwheel readings. (It will *not* increase the actual polling rate)
    I believe this delay is deep in the QMK implementation. Also PS2 is a crotchety old standard.
-*/
+   */
 bool encoder_update_user(uint8_t index, bool clockwise) {
     // float step_values[10] = {2.0, 2.0, 1.8, 1.8, 1.6, 1.6, 1.4, 1.4, 1.2, 1.0};
     // float step_values[10] = {3.0, 3.0, 3.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0};
@@ -648,16 +716,16 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
         //wait_ms(hard_delay_max);
     }
     /*
-    if (timer_difference < hard_delay_max-10) {
-        wait_ms(hard_delay_max-10 );
-    }
-    else if (timer_difference < hard_delay_max-5) {
-        wait_ms(hard_delay_max-5 );
-    }
-    else if (timer_difference < hard_delay_max) {
-        wait_ms(hard_delay_max);
-    }
-    */
+       if (timer_difference < hard_delay_max-10) {
+       wait_ms(hard_delay_max-10 );
+       }
+       else if (timer_difference < hard_delay_max-5) {
+       wait_ms(hard_delay_max-5 );
+       }
+       else if (timer_difference < hard_delay_max) {
+       wait_ms(hard_delay_max);
+       }
+       */
     if (scroll_wheel_test_setting == DEFAULT) {
         //currentReport.v = (clockwise ? 1.0 : -1.0);
         //currentReport.v = 0 * (clockwise ? 1.0 : -1.0);
@@ -710,14 +778,14 @@ void keyboard_post_init_user(void) {
     debug_keyboard = false;
     debug_mouse    = false;
 
-//    uint8_t eeprom_value = eeprom_read_byte((uint8_t*)EEPROM_CUSTOM_START);
-//    // Save the boolean to EEPROM
-//    if(eeprom_value == 0xFF) {
-//        // The value has not been set yet, so set it to a default value
-//        your_boolean = false;
-//    } else {
-//        your_boolean = eeprom_value == 1;
-//    }
-//    eeprom_update_byte((uint8_t*)EEPROM_CUSTOM_START, !your_boolean ? 1 : 0);
+    //    uint8_t eeprom_value = eeprom_read_byte((uint8_t*)EEPROM_CUSTOM_START);
+    //    // Save the boolean to EEPROM
+    //    if(eeprom_value == 0xFF) {
+    //        // The value has not been set yet, so set it to a default value
+    //        your_boolean = false;
+    //    } else {
+    //        your_boolean = eeprom_value == 1;
+    //    }
+    //    eeprom_update_byte((uint8_t*)EEPROM_CUSTOM_START, !your_boolean ? 1 : 0);
 }
 
