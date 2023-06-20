@@ -367,10 +367,17 @@ void update_settings_display() {
 void display_progress_x6(setting_id_t id, bool is_current) {
     int value;
     switch (id) {
-        case SETTING_TP_ACCELERATION: value = acceleration_setting; break;
-        case SETTING_TP_SPEED: value = linear_reduction_setting; break;
-        case SETTING_TP_SCROLL_SPEED: value = drag_scroll_speed_setting; break;
-        default: value = 1;
+        case SETTING_TP_ACCELERATION:
+            value = acceleration_setting;
+            break;
+        case SETTING_TP_SPEED:
+            value = linear_reduction_setting;
+            break;
+        case SETTING_TP_SCROLL_SPEED:
+            value = drag_scroll_speed_setting;
+            break;
+        default:
+            value = 1;
     }
 
     oled_write_ln(progress_bars_x6[value], is_current);
@@ -380,8 +387,11 @@ void display_progress_x6(setting_id_t id, bool is_current) {
 void display_bool(setting_id_t id, bool is_current) {
     bool value;
     switch (id) {
-        case SETTING_PINKY_SHIFT: value = is_pinky_shift_keys_active; break;
-        default: value = false;
+        case SETTING_PINKY_SHIFT:
+            value = is_pinky_shift_keys_active;
+            break;
+        default:
+            value = false;
     }
     if (value) {
         oled_write_ln_P(PSTR("Yes"), is_current);
@@ -395,9 +405,14 @@ void display_bool(setting_id_t id, bool is_current) {
 void display_int(setting_id_t id, bool is_current) {
     int value;
     switch (id) {
-        case SETTING_ROTATION_ANGLE: value = mouse_rotation_angle; break;
-        case SETTING_ALT_TAB_TIMEOUT: value = alt_tab_timeout; break;
-        default: value = 7;
+        case SETTING_ROTATION_ANGLE:
+            value = mouse_rotation_angle;
+            break;
+        case SETTING_ALT_TAB_TIMEOUT:
+            value = alt_tab_timeout;
+            break;
+        default:
+            value = 7;
     }
 
     oled_write(get_u16_str(value, ' '), is_current);
@@ -470,6 +485,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                                          adjust_setting_uint8(&drag_scroll_speed_setting, adjustment, 0, 5);
                                      }
                                      else if (settings_selected_setting == SETTING_PINKY_SHIFT) {
+                                         //    adjust_setting_uint8(&is_pinky_shift_keys_active, adjustment, 0, 1);
                                          is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
                                      }
                                  }
@@ -553,10 +569,13 @@ bool oled_task_user(void) {
             show_vanity_text = false;
         }
     }
+    else if (is_alt_tab_pressed ) {
+        oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
+    }
     else {
         switch (get_highest_layer(layer_state)) {
             case _QWERTY:
-                if (is_alt_tab_pressed || timer_elapsed(alt_tab_timer) < alt_tab_timeout) {
+                if (is_alt_tab_pressed ) {
                     oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
                 } else if ((host_keyboard_leds() & (1<<USB_LED_CAPS_LOCK))) {
                     oled_write_ln_P(PSTR("      Caps Lock     "), true);
