@@ -48,6 +48,7 @@ Desired TODOs:
     - Update the mouse pointer smoothing code to use integer math instead of floating point math. This will probably require some clever lookup tables but could save up to 1000 bytes in the compiled hex.
     - Add sidescroll ability to the scrollwheel.
     - Slowly make options to test the transition to a 36 key layout (make alternatives to the outer columns)
+    - Override glcdfont.c to include my own graphical characters to make OLED pages look nicer.
 
 */
 
@@ -368,10 +369,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                              }
 
         case SETTINGS_EXIT:
-            // TODO: Returning to base using layer_clear() seems to send the key underneath (exit send enter)
             layer_clear();
             save_settings_to_eeprom();
-            return true;
+            return false;  // needs to be false so qmk doesn't send keystroke. We just want to manually exit the Settings screen.
 
         case A_B_TEST:
             if (record->event.pressed) {
@@ -684,6 +684,7 @@ void keyboard_post_init_user(void) {
     //user_config_t temp_config;
     eeprom_read_block(&user_config, (void*)EEPROM_CUSTOM_START, sizeof(user_config_t));
     if(user_config.signature != USER_CONFIG_SIGNATURE) {
+        user_config.signature      = USER_CONFIG_SIGNATURE;
         save_settings_to_eeprom();
     }
     else {
