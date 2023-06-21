@@ -52,30 +52,79 @@ Desired TODOs:
 */
 
 #include QMK_KEYBOARD_H
-#include "santoku.h"
 #include <stdbool.h>   // This is just to get rid of the linter warning
 #include <stdint.h>   // This is just to get rid of the linter warning
+
+#include "santoku.h"
+
+// for EEPROM to save settings between resets
+#include "quantum.h"
+#include "eeprom.h"
 
 #ifdef PS2_MOUSE_ENABLE
 #include "ps2_mouse.h"
 #include "ps2.h"
 #endif
 
-// for EEPROM to save settings between resets
-//#include "quantum.h"
-//#include "eeprom.h"
-//#define EEPROM_CUSTOM_START 32
-//bool your_boolean; // The value you want to store
-//uint8_t eeprom_value;
-
 #define VANITY_TIMEOUT 5000
 #define ___x___ XXXXXXX
 
-void scroll_settings(int8_t direction);
-void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report);
-void update_settings_display(void);
-void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max);
-void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max);
+#define USER_CONFIG_SIGNATURE 0xDA7A // Used to determine if EEPROM has previously saved Settings already
+#define EEPROM_CUSTOM_START 32
+
+#define NUM_DISPLAY_ROWS 4
+
+typedef enum {
+    SETTING_TP_ACCELERATION,
+    SETTING_TP_SPEED,
+    SETTING_TP_SCROLL_SPEED,
+    SETTING_ROTATION_ANGLE,
+    SETTING_PINKY_SHIFT,
+    SETTING_ALT_TAB_TIMEOUT,
+    SETTING_DEFAULT_LAYOUT,
+    SETTING_OPERATING_SYSTEM,
+    SETTING_EXP_SEND_MOUSE_UPDATE,
+    SETTING_SCROLLWHEEL_DELAY,
+    NUM_SETTINGS  // make sure this is always the final element in the enum
+} setting_id_t;
+
+typedef struct {
+    setting_id_t id;
+    const char* name;
+    void (*display_func)(setting_id_t id, bool is_current);
+} setting_t;
+
+// The struct that will be saved to EEPROM to preserve user settings
+typedef struct {
+    uint16_t signature;  // Used to determine if data is currently saved in EEPROM
+    uint16_t mouse_rotation_angle;
+    uint16_t alt_tab_timeout;
+    uint8_t  acceleration_setting;
+    uint8_t  linear_reduction_setting;
+    uint8_t  drag_scroll_speed_setting;
+    uint8_t  scroll_wheel_test_setting;
+    bool     is_pinky_shift_keys_active;
+} user_config_t;
+
+enum scroll_wheel_setting{
+    DEFAULT,
+    DEFAULT_FASTER,
+    FANCY,
+    FANCY2
+};
+
+// Combo stuff
+enum combos {
+    COMBO_MCOMMADOT_FORWARDHISTORY,
+    COMBO_NMCOMM_BACKHISTORY,
+    COMBO_HJK_CLOSETAB,
+    COMBO_YUI_PREVTAB,
+    COMBO_UIO_NEXTTAB,
+    COMBO_GH_CAPSLOCK,
+    COMBO_UI_ESCAPE,
+    COMBO_FG_TAB,
+    NUM_COMBOS    // make sure this is always the final element in the combos enum
+};
 
 // Santoku keymap set up
 enum santoku_layers {
@@ -98,104 +147,8 @@ enum santoku_keycodes {
     SETTINGS_DOWN,
     SETTINGS_LEFT,
     SETTINGS_RIGHT,
-    SETTINGS_SELECT,
+    SETTINGS_SAVE,
     A_B_TEST
-};
-
-//enum settings_screen_choice {
-//    ROTATION_ANGLE,
-//    TP_ACCELERATION,
-//    TP_SPEED,
-//    TP_SCROLL_SPEED,
-//    PINKY_SHIFT,
-//    EXP_SEND_MOUSE_UPDATE, /* whether to send extra mouse update after scrollwheel click */
-//    //ALT_TAB_TIMEOUT,
-//    //SCROLLWHEEL_DELAY, // need to come up with a better name
-//    NUM_SETTINGS };
-
-#define MAX_DISPLAY_ROWS 4
-
-int8_t settings_scroll_position = 0;
-int8_t settings_selected_setting = 0;
-
-typedef enum {
-    SETTING_TP_ACCELERATION,
-    SETTING_TP_SPEED,
-    SETTING_TP_SCROLL_SPEED,
-    SETTING_ROTATION_ANGLE,
-    SETTING_PINKY_SHIFT,
-    SETTING_ALT_TAB_TIMEOUT,
-    SETTING_DEFAULT_LAYOUT,
-    SETTING_OPERATING_SYSTEM,
-    SETTING_EXP_SEND_MOUSE_UPDATE,
-    SETTING_SCROLLWHEEL_DELAY,
-    NUM_SETTINGS  // make sure this is always the final element in the enum
-} setting_id_t;
-uint8_t current_setting_choice = 0;
-
-typedef struct {
-    setting_id_t id;
-    const char* name;
-    void (*display_func)(setting_id_t id, bool is_current);
-} setting_t;
-
-// Forward declarations of display functions
-void display_placeholder(setting_id_t id, bool is_current);
-void display_int(setting_id_t id, bool is_current);
-void display_progress_x6(setting_id_t id, bool is_current);
-void display_bool(setting_id_t id, bool is_current);
-
-
-setting_t settings[NUM_SETTINGS] = {
-    {SETTING_TP_ACCELERATION,       "TP Accel    ",      display_progress_x6},
-    {SETTING_TP_SPEED,              "TP Speed    ",      display_progress_x6},
-    {SETTING_TP_SCROLL_SPEED,       "TP Scroll   ",      display_progress_x6},
-    {SETTING_ROTATION_ANGLE,        "TP Rotate      ",   display_int},
-    {SETTING_PINKY_SHIFT,           "Pinky Shift      ", display_bool},
-    {SETTING_ALT_TAB_TIMEOUT,       "AltTab Time    ",   display_int},
-    {SETTING_DEFAULT_LAYOUT,        "Def Layout  ",      display_placeholder},
-    {SETTING_OPERATING_SYSTEM,      "Oper System ",      display_placeholder},
-    {SETTING_EXP_SEND_MOUSE_UPDATE, "EX MouseUpd ",      display_placeholder},
-    {SETTING_SCROLLWHEEL_DELAY,     "ScrlWhlDel     ",   display_int}
-};
-
-// One tap alt-tab controls. Improvement to the code example from: https://docs.qmk.fm/#/feature_macros?id=super-alt%e2%86%aftab
-bool     is_alt_tab_pressed = false;
-uint16_t alt_tab_timer      = 0;
-uint16_t alt_tab_timeout    = 300;
-
-// toggles the typical shift keys (in lower corners). Useful when learning to use homerow mod's shift keys but still need to be productive at day job.
-bool is_pinky_shift_keys_active = true;
-
-// Trackpoint/mouse pointer dynamic speed controls and GUI/OLED settings
-uint8_t acceleration_setting        = 2;
-float   acceleration_values[6]      = {0.6f, 0.8f, 1.0f, 1.2f, 1.4f, 1.6f};
-uint8_t linear_reduction_setting    = 2;
-float   linear_reduction_values[6]  = {2.4f, 2.2f, 2.0f, 1.8f, 1.6f, 1.4f};
-uint8_t drag_scroll_speed_setting   = 2;
-uint8_t drag_scroll_speed_values[6] = {8, 7, 6, 5, 4, 3};
-char *  progress_bars_x6[6]         = {"[=     ]", "[==    ]", "[===   ]", "[====  ]", "[===== ]", "[=PLAID]"};
-uint8_t scroll_wheel_test_setting   = 0;
-uint16_t mouse_rotation_angle = 350;
-
-enum scroll_wheel_setting{
-    DEFAULT,
-    DEFAULT_FASTER,
-    FANCY,
-    FANCY2
-};
-
-// Combo stuff
-enum combos {
-    COMBO_MCOMMADOT_FORWARDHISTORY,
-    COMBO_NMCOMM_BACKHISTORY,
-    COMBO_HJK_CLOSETAB,
-    COMBO_YUI_PREVTAB,
-    COMBO_UIO_NEXTTAB,
-    COMBO_GH_CAPSLOCK,
-    COMBO_UI_ESCAPE,
-    COMBO_FG_TAB,
-    NUM_COMBOS    // make sure this is always the final element in the combos enum
 };
 
 const uint16_t PROGMEM combo_yui[]       = {KC_Y, KC_U, KC_I, COMBO_END};
@@ -216,6 +169,56 @@ combo_t key_combos[NUM_COMBOS] = {
     [COMBO_UI_ESCAPE] = COMBO_ACTION(combo_ui),
     [COMBO_FG_TAB] = COMBO_ACTION(combo_fg)
 };
+
+// Forward declarations
+void scroll_settings(int8_t direction);
+void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report);
+void update_settings_display(void);
+void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max);
+void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max);
+void save_settings_to_eeprom(void);
+
+void display_placeholder(setting_id_t id, bool is_current);
+void display_int(setting_id_t id, bool is_current);
+void display_progress_x6(setting_id_t id, bool is_current);
+void display_bool(setting_id_t id, bool is_current);
+setting_t settings[NUM_SETTINGS] = {
+    {SETTING_TP_ACCELERATION,       "TP Accel    ",      display_progress_x6},
+    {SETTING_TP_SPEED,              "TP Speed    ",      display_progress_x6},
+    {SETTING_TP_SCROLL_SPEED,       "TP Scroll   ",      display_progress_x6},
+    {SETTING_ROTATION_ANGLE,        "TP Rotate      ",   display_int},
+    {SETTING_PINKY_SHIFT,           "Pinky Shift      ", display_bool},
+    {SETTING_ALT_TAB_TIMEOUT,       "AltTab Time    ",   display_int},
+    {SETTING_DEFAULT_LAYOUT,        "Def Layout  ",      display_placeholder},
+    {SETTING_OPERATING_SYSTEM,      "Oper System ",      display_placeholder},
+    {SETTING_EXP_SEND_MOUSE_UPDATE, "EX MouseUpd ",      display_placeholder},
+    {SETTING_SCROLLWHEEL_DELAY,     "ScrlWhlDel     ",   display_int}
+};
+
+// One tap alt-tab controls. Improvement to the code example from: https://docs.qmk.fm/#/feature_macros?id=super-alt%e2%86%aftab
+bool     is_alt_tab_pressed = false;
+uint16_t alt_tab_timer      = 0;
+uint16_t alt_tab_timeout    = 300;
+
+// toggles the typical shift keys (in lower corners). Useful when learning to use homerow mod's shift keys but still need to be productive at day job.
+bool is_pinky_shift_keys_active = false;
+
+// Trackpoint/mouse pointer dynamic speed controls and GUI/OLED settings
+uint8_t acceleration_setting        = 2;
+float   acceleration_values[6]      = {0.6f, 0.8f, 1.0f, 1.2f, 1.4f, 1.6f};
+uint8_t linear_reduction_setting    = 2;
+float   linear_reduction_values[6]  = {2.4f, 2.2f, 2.0f, 1.8f, 1.6f, 1.4f};
+uint8_t drag_scroll_speed_setting   = 2;
+uint8_t drag_scroll_speed_values[6] = {8, 7, 6, 5, 4, 3};
+char *  progress_bars_x6[6]         = {"[=     ]", "[==    ]", "[===   ]", "[====  ]", "[===== ]", "[=PLAID]"};
+uint8_t scroll_wheel_test_setting   = 0;
+uint16_t mouse_rotation_angle       = 350;
+
+uint8_t current_setting_choice      = 0;
+int8_t settings_scroll_position     = 0;
+int8_t settings_selected_setting    = 0;
+
+user_config_t user_config;
 
 // This logo uses about 7% of the entire available memory on the atmega32u4
 // TODO: Research overwriting QMK's built in font set to make better settings screen and reduce this logo's space requirements
@@ -290,139 +293,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         {___x___, ___x___, ___x___, SETTINGS_UP, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___},
         {TO(_QWERTY), ___x___, SETTINGS_LEFT, SETTINGS_DOWN, SETTINGS_RIGHT, ___x___, SETTINGS_LEFT, SETTINGS_DOWN, SETTINGS_UP, SETTINGS_RIGHT, ___x___, ___x___},
         {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, TO(_QWERTY), ___x___},
-        {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, SETTINGS_SELECT, ___x___, ___x___, ___x___}
+        {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, SETTINGS_SAVE, ___x___, ___x___, ___x___}
     }
     ,};
 
-
-// TODO: Make better way to handle this for uint16_t AND ALSO uint8_t
-void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max) {
-    if (adjustment == -1 && *setting == min) {
-        *setting = max;
-    }
-    else if (adjustment == 1 && *setting == max) {
-        *setting = min;
-    }
-    else {
-        //*setting += adjustment;
-        uint16_t new_value = *setting + adjustment;
-        if (new_value > max)
-            *setting = min;
-        else if (new_value < min)
-            *setting = max;
-        else
-            *setting = new_value;
-    }
-}
-
-void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max) {
-    if (adjustment == -1 && *setting == min) {
-        *setting = max;
-    }
-    else if (adjustment == 1 && *setting == max) {
-        *setting = min;
-    }
-    else {
-        //*setting += adjustment;
-        uint16_t new_value = *setting + adjustment;
-        if (new_value > max)
-            *setting = min;
-        else if (new_value < min)
-            *setting = max;
-        else
-            *setting = new_value;
-    }
-}
-
-
-
-// Handles scrolling up and down through the choices on the Settings layer/screen
-void scroll_settings(int8_t direction) {
-    settings_scroll_position += direction;
-    settings_selected_setting += direction;
-
-    int8_t max_scroll_position = NUM_SETTINGS > MAX_DISPLAY_ROWS ? NUM_SETTINGS - MAX_DISPLAY_ROWS : 0;
-    int8_t max_selected_setting = NUM_SETTINGS - 1;
-
-    // handle edge cases
-    if (settings_scroll_position < 0) settings_scroll_position = 0;
-    if (settings_scroll_position > max_scroll_position) settings_scroll_position = max_scroll_position;
-    if (settings_selected_setting < 0) settings_selected_setting = 0;
-    if (settings_selected_setting > max_selected_setting) settings_selected_setting = max_selected_setting;
-}
-
-// Loops through the visible Settings on the Settings screen to display them
-void update_settings_display() {
-    //static char * temp_progress_bars[9] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
-    for (uint8_t i = 0; i < MAX_DISPLAY_ROWS; i++) {
-        uint8_t setting_index = settings_scroll_position + i;
-        if (setting_index < NUM_SETTINGS) {
-            oled_write(settings[setting_index].name, settings_selected_setting == setting_index);
-            settings[setting_index].display_func(settings[setting_index].id, settings_selected_setting == setting_index);
-        }
-    }
-}
-
-// Used by update_display_settings to show Progress Bar settings
-void display_progress_x6(setting_id_t id, bool is_current) {
-    int value;
-    switch (id) {
-        case SETTING_TP_ACCELERATION:
-            value = acceleration_setting;
-            break;
-        case SETTING_TP_SPEED:
-            value = linear_reduction_setting;
-            break;
-        case SETTING_TP_SCROLL_SPEED:
-            value = drag_scroll_speed_setting;
-            break;
-        default:
-            value = 1;
-    }
-
-    oled_write_ln(progress_bars_x6[value], is_current);
-}
-
-// Used by update_display_settings to show boolean settings
-void display_bool(setting_id_t id, bool is_current) {
-    bool value;
-    switch (id) {
-        case SETTING_PINKY_SHIFT:
-            value = is_pinky_shift_keys_active;
-            break;
-        default:
-            value = false;
-    }
-    if (value) {
-        oled_write_ln_P(PSTR("Yes"), is_current);
-    } else {
-        oled_write_ln_P(PSTR(" No"), is_current);
-    }
-}
-
-
-// Used by update_display_settings to show integer settings
-void display_int(setting_id_t id, bool is_current) {
-    int value;
-    switch (id) {
-        case SETTING_ROTATION_ANGLE:
-            value = mouse_rotation_angle;
-            break;
-        case SETTING_ALT_TAB_TIMEOUT:
-            value = alt_tab_timeout;
-            break;
-        default:
-            value = 7;
-    }
-
-    oled_write(get_u16_str(value, ' '), is_current);
-    oled_write_ln_P(PSTR(""), false);
-}
-
-// Used by update_display_settings to provide some text for Settings that aren't finished yet.
-void display_placeholder(setting_id_t id, bool is_current) {
-    oled_write_ln_P(PSTR("Not Done"), is_current);
-}
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
@@ -487,19 +361,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                                      else if (settings_selected_setting == SETTING_PINKY_SHIFT) {
                                          //    adjust_setting_uint8(&is_pinky_shift_keys_active, adjustment, 0, 1);
                                          is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
+                                         //oled_write_ln_P(PSTR("Toggled Pinky"), false);
                                      }
                                  }
                                  return true;
                              }
 
+        case SETTINGS_SAVE:
+            save_settings_to_eeprom();
+            return true;
+
         case A_B_TEST:
-                             if (record->event.pressed) {
-                                 scroll_wheel_test_setting++;
-                                 if (scroll_wheel_test_setting > FANCY2) {
-                                     scroll_wheel_test_setting = 0;
-                                 }
-                             }
-                             return true;
+            if (record->event.pressed) {
+                scroll_wheel_test_setting++;
+                if (scroll_wheel_test_setting > FANCY2) {
+                    scroll_wheel_test_setting = 0;
+                }
+            }
+            return true;
     }
     return true;
 }
@@ -645,6 +524,8 @@ bool oled_task_user(void) {
 
 // TODO: Move the speed and acceleration code into a separate function to make more modular
 // TODO: Move the drag scroll counter code into a separate function to make more modular
+// TODO: Move the mouse acceleration and speed code into a separate function, like rotate_mouse_coordinates()
+// TODO: If possible, don't convert values back to int between functions. Keep as floats, round one time at the end.
 void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     rotate_mouse_coordinates(mouse_rotation_angle, mouse_report);
     // The math below turns the Trackpoint x and y reports (movements) into a vector and scales the vector with some trigonometry.
@@ -685,7 +566,6 @@ void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report) {
     mouse_report->y = round(sin(radians) * current_x + cos(radians) * current_y);
 }
 
-
 #ifdef ENCODER_ENABLE
 
 /*
@@ -715,7 +595,7 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
     static uint16_t encoder_timer    = 0;
     static uint16_t timer_difference = 0;
     static uint16_t hard_delay_max   = 30;
-    static bool previous_direction;
+    static bool     previous_direction;
 
     timer_difference = timer_elapsed(encoder_timer);
 
@@ -797,14 +677,160 @@ void keyboard_post_init_user(void) {
     debug_keyboard = false;
     debug_mouse    = false;
 
-    //    uint8_t eeprom_value = eeprom_read_byte((uint8_t*)EEPROM_CUSTOM_START);
-    //    // Save the boolean to EEPROM
-    //    if(eeprom_value == 0xFF) {
-    //        // The value has not been set yet, so set it to a default value
-    //        your_boolean = false;
-    //    } else {
-    //        your_boolean = eeprom_value == 1;
-    //    }
-    //    eeprom_update_byte((uint8_t*)EEPROM_CUSTOM_START, !your_boolean ? 1 : 0);
+    //user_config_t temp_config;
+    eeprom_read_block(&user_config, (void*)EEPROM_CUSTOM_START, sizeof(user_config_t));
+    if(user_config.signature != USER_CONFIG_SIGNATURE) {
+        save_settings_to_eeprom();
+    }
+    else {
+        user_config.signature      = USER_CONFIG_SIGNATURE;
+        mouse_rotation_angle       = user_config.mouse_rotation_angle;
+        alt_tab_timeout            = user_config.alt_tab_timeout;
+        acceleration_setting       = user_config.acceleration_setting;
+        linear_reduction_setting   = user_config.linear_reduction_setting;
+        drag_scroll_speed_setting  = user_config.drag_scroll_speed_setting;
+        scroll_wheel_test_setting  = user_config.scroll_wheel_test_setting;
+        is_pinky_shift_keys_active = user_config.is_pinky_shift_keys_active;
+    }
 }
 
+// TODO: Make better way to handle this for uint16_t AND ALSO uint8_t
+void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max) {
+    if (adjustment == -1 && *setting == min) {
+        *setting = max;
+    }
+    else if (adjustment == 1 && *setting == max) {
+        *setting = min;
+    }
+    else {
+        //*setting += adjustment;
+        uint16_t new_value = *setting + adjustment;
+        if (new_value > max)
+            *setting = min;
+        else if (new_value < min)
+            *setting = max;
+        else
+            *setting = new_value;
+    }
+}
+
+void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max) {
+    if (adjustment == -1 && *setting == min) {
+        *setting = max;
+    }
+    else if (adjustment == 1 && *setting == max) {
+        *setting = min;
+    }
+    else {
+        //*setting += adjustment;
+        uint16_t new_value = *setting + adjustment;
+        if (new_value > max)
+            *setting = min;
+        else if (new_value < min)
+            *setting = max;
+        else
+            *setting = new_value;
+    }
+}
+
+// Handles scrolling up and down through the choices on the Settings layer/screen
+void scroll_settings(int8_t direction) {
+    settings_scroll_position += direction;
+    settings_selected_setting += direction;
+
+    int8_t max_scroll_position = NUM_SETTINGS > NUM_DISPLAY_ROWS ? NUM_SETTINGS - NUM_DISPLAY_ROWS : 0;
+    int8_t max_selected_setting = NUM_SETTINGS - 1;
+
+    // handle edge cases
+    if (settings_scroll_position < 0) settings_scroll_position = 0;
+    if (settings_scroll_position > max_scroll_position) settings_scroll_position = max_scroll_position;
+    if (settings_selected_setting < 0) settings_selected_setting = 0;
+    if (settings_selected_setting > max_selected_setting) settings_selected_setting = max_selected_setting;
+}
+
+// Loops through the visible Settings on the Settings screen to display them
+void update_settings_display() {
+    //static char * temp_progress_bars[9] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
+    for (uint8_t i = 0; i < NUM_DISPLAY_ROWS; i++) {
+        uint8_t setting_index = settings_scroll_position + i;
+        if (setting_index < NUM_SETTINGS) {
+            oled_write(settings[setting_index].name, settings_selected_setting == setting_index);
+            settings[setting_index].display_func(settings[setting_index].id, settings_selected_setting == setting_index);
+        }
+    }
+}
+
+// Used by update_display_settings to show Progress Bar settings
+void display_progress_x6(setting_id_t id, bool is_current) {
+    int value;
+    switch (id) {
+        case SETTING_TP_ACCELERATION:
+            value = acceleration_setting;
+            break;
+        case SETTING_TP_SPEED:
+            value = linear_reduction_setting;
+            break;
+        case SETTING_TP_SCROLL_SPEED:
+            value = drag_scroll_speed_setting;
+            break;
+        default:
+            value = 1;
+    }
+
+    oled_write_ln(progress_bars_x6[value], is_current);
+}
+
+// Used by update_display_settings to show boolean settings
+void display_bool(setting_id_t id, bool is_current) {
+    bool value;
+    switch (id) {
+        case SETTING_PINKY_SHIFT:
+            value = is_pinky_shift_keys_active;
+            break;
+        default:
+            value = false;
+    }
+    if (value) {
+        oled_write_ln_P(PSTR("Yes"), is_current);
+    } else {
+        oled_write_ln_P(PSTR(" No"), is_current);
+    }
+}
+
+
+// Used by update_display_settings to show integer settings
+void display_int(setting_id_t id, bool is_current) {
+    int value;
+    switch (id) {
+        case SETTING_ROTATION_ANGLE:
+            value = mouse_rotation_angle;
+            break;
+        case SETTING_ALT_TAB_TIMEOUT:
+            value = alt_tab_timeout;
+            break;
+        default:
+            value = 7;
+    }
+
+    oled_write(get_u16_str(value, ' '), is_current);
+    oled_write_ln_P(PSTR(""), false);
+}
+
+// Used by update_display_settings to provide some text for Settings that aren't finished yet.
+void display_placeholder(setting_id_t id, bool is_current) {
+    oled_write_ln_P(PSTR("Not Done"), is_current);
+}
+
+
+void save_settings_to_eeprom(void) {
+        user_config.signature                  = USER_CONFIG_SIGNATURE;
+        user_config.mouse_rotation_angle       = mouse_rotation_angle;
+        user_config.alt_tab_timeout            = alt_tab_timeout;
+        user_config.acceleration_setting       = acceleration_setting;
+        user_config.linear_reduction_setting   = linear_reduction_setting;
+        user_config.drag_scroll_speed_setting  = drag_scroll_speed_setting;
+        user_config.scroll_wheel_test_setting  = scroll_wheel_test_setting;
+        user_config.is_pinky_shift_keys_active = is_pinky_shift_keys_active;
+
+        eeprom_update_block(&user_config, (void*)EEPROM_CUSTOM_START, sizeof(user_config_t));
+}
