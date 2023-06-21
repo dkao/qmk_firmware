@@ -147,7 +147,7 @@ enum santoku_keycodes {
     SETTINGS_DOWN,
     SETTINGS_LEFT,
     SETTINGS_RIGHT,
-    SETTINGS_SAVE,
+    SETTINGS_EXIT,
     A_B_TEST
 };
 
@@ -291,9 +291,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_SETTINGS] =
     {/*SETTINGS*/
         {___x___, ___x___, ___x___, SETTINGS_UP, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___},
-        {TO(_QWERTY), ___x___, SETTINGS_LEFT, SETTINGS_DOWN, SETTINGS_RIGHT, ___x___, SETTINGS_LEFT, SETTINGS_DOWN, SETTINGS_UP, SETTINGS_RIGHT, ___x___, ___x___},
+        {SETTINGS_EXIT, ___x___, SETTINGS_LEFT, SETTINGS_DOWN, SETTINGS_RIGHT, ___x___, SETTINGS_LEFT, SETTINGS_DOWN, SETTINGS_UP, SETTINGS_RIGHT, ___x___, ___x___},
         {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, TO(_QWERTY), ___x___},
-        {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, SETTINGS_SAVE, ___x___, ___x___, ___x___}
+        {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, SETTINGS_EXIT, ___x___, ___x___, ___x___}
     }
     ,};
 
@@ -367,7 +367,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                                  return true;
                              }
 
-        case SETTINGS_SAVE:
+        case SETTINGS_EXIT:
+            // TODO: Returning to base using layer_clear() seems to send the key underneath (exit send enter)
+            layer_clear();
             save_settings_to_eeprom();
             return true;
 
@@ -446,6 +448,8 @@ bool oled_task_user(void) {
         oled_write_raw_P(santoku_logo, sizeof(santoku_logo) );
         if (timer_read() > vanity_timeout) {
             show_vanity_text = false;
+            // clear the oled buffer to clear any image remnants from bootup graphics. Not needed if image not too wide.
+            oled_clear();
         }
     }
     else if (is_alt_tab_pressed ) {
@@ -454,7 +458,7 @@ bool oled_task_user(void) {
     else {
         switch (get_highest_layer(layer_state)) {
             case _QWERTY:
-                if (is_alt_tab_pressed ) {
+                if (is_alt_tab_pressed || ((alt_tab_timer < alt_tab_timeout) && alt_tab_timer > 0)) {
                     oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
                 } else if ((host_keyboard_leds() & (1<<USB_LED_CAPS_LOCK))) {
                     oled_write_ln_P(PSTR("      Caps Lock     "), true);
@@ -487,9 +491,9 @@ bool oled_task_user(void) {
                 // TODO: Research how to display graphic characters in QMK font instead of using <<, >>, D[, etc
                 oled_write_ln_P(PSTR("     Navigation     "), true);
                 oled_write_ln_P(PSTR(""), false);
-                oled_write_ln_P(PSTR("       | HM PD PU EN"), false);
-                oled_write_ln_P(PSTR("       | << vv ^^ >>"), false);
-                oled_write_ln_P(PSTR("       | D[ D] D+ D-"), false);
+                oled_write_ln_P(PSTR("          | \x11 \x1F \x1E \x10"), false);
+                oled_write_ln_P(PSTR("          | \x1B \x19 \x18 \x1A"), false);
+                oled_write_ln_P(PSTR("          | \x11\x64\x10 -d+"), false);
                 oled_write_ln_P(PSTR("Dl Sp Ovw | __ __ En"), false);
                 oled_write_ln_P(PSTR(""), false);
                 oled_write_ln_P(PSTR(""), false);
@@ -501,7 +505,7 @@ bool oled_task_user(void) {
                 oled_write_ln_P(PSTR("          |"), false);
                 oled_write_ln_P(PSTR("ES F12345 | 67890"), false);
                 oled_write_ln_P(PSTR("CL F      | ab  Opt"), false);
-                oled_write_ln_P(PSTR("__ Sp Ovw | __ __ Rs"), false);
+                oled_write_ln_P(PSTR("Fn Sp Ovw | __ __ Rs"), false);
                 oled_write_ln_P(PSTR(""), false);
                 oled_write_ln_P(PSTR("  Fn+/ for Options"), false);
                 break;
@@ -511,7 +515,7 @@ bool oled_task_user(void) {
                 oled_write_ln_P(PSTR(""), false);
                 update_settings_display();
                 oled_write_ln_P(PSTR(""), false);
-                oled_write_ln_P(PSTR("SELECT HJKL,  EXIT /"), false);
+                oled_write_ln_P(PSTR("HJKL SELECT,Esc EXIT"), false);
                 break;
         }
     }
