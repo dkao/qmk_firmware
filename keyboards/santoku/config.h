@@ -34,26 +34,13 @@
 #define MATRIX_ROWS 4
 #define MATRIX_COLS 12
 
-//#define MATRIX_COL_PINS { F1, F0, B6, B2, B3, B1, C7, E6, B7, B5, B4, C6 }
-//#define MATRIX_ROW_PINS { F4, F5, F6, F7 }
-//#define UNUSED_PINS
-
 #define LAYER_STATE_8BIT  //  Tells QMK that keymap has fewer than 8 layers. Saves about 660 bytes. Remove if using more than 8 layers
 
 // Configure the SSD1306OLED display
 //#define USE_I2C
 #define OLED_DISPLAY_128X64
 
-// Configure rotary encoder
-//#define ENCODERS_PAD_A { D4 }
-//#define ENCODERS_PAD_B { D7 }
-//#define ENCODER_RESOLUTION 1
-//#define ENCODER_DEFAULT_POS 0x1
-
-//#ifdef PS2_MOUSE_ENABLE
-
 #define PS2_MOUSE_SCROLL_BTN_SEND 500 /* Default is 300 */
-//#define PS2_MOUSE_INVERT_BUTTONS
 
 #undef PS2_MOUSE_SCROLL_BTN_MASK
 #define PS2_MOUSE_SCROLL_BTN_MASK (1<<PS2_MOUSE_BTN_MIDDLE) /* Default */
@@ -62,7 +49,7 @@
 #define PS2_MOUSE_BTN_MIDDLE    2
 
 #define PS2_MOUSE_INIT_DELAY 1000 /* Default */
-//#endif
+
 
 
 #ifdef PS2_USE_USART
@@ -100,16 +87,6 @@
 #define PS2_USART_RX_VECT       USART1_RX_vect
 #endif
 
-
-#ifdef PS2_USE_BUSYWAIT
-#define PS2_CLOCK_PIN   D5
-#define PS2_DATA_PIN    D2
-#endif
-
-
-/* define if matrix has ghost */
-//#define MATRIX_HAS_GHOST
-
 /* Set 0 if debouncing isn't needed */
 #define DEBOUNCE    5
 
@@ -129,9 +106,27 @@
 /* disable print */
 //#define NO_PRINT
 
-/* disable action features */
-//#define NO_ACTION_LAYER
-//#define NO_ACTION_TAPPING
-//#define NO_ACTION_ONESHOT
-//#define NO_ACTION_MACRO
-//#define NO_ACTION_FUNCTION
+#define ENCODER_RESOLUTION 1
+#define ENCODER_MAP_DELAY 0
+
+//#define MK_3_SPEED
+#define MK_KINETIC_SPEED
+// #define MK_MOMENTARY_ACCEL
+// #define MK_1_SPEED
+// #define MK_2_SPEED
+// #define MK_3_SPEED
+#define MOUSEKEY_WHEEL_INTERVAL                 8   // 80 Time between wheel movements
+#define MOUSEKEY_WHEEL_DELAY                    5   // 5  Delay between pressing a movement key and cursor movement
+#define MOUSEKEY_WHEEL_INITIAL_MOVEMENTS	    128	// 16 Initial number of movements of the mouse wheel
+#define MOUSEKEY_WHEEL_BASE_MOVEMENTS	        128	// 32 Maximum number of movements at which acceleration stops
+#define MOUSEKEY_WHEEL_ACCELERATED_MOVEMENTS	128	// 48 Accelerated wheel movements
+#define MOUSEKEY_WHEEL_DECELERATED_MOVEMENTS	128	// 8  Decelerated wheel movements
+#define MOUSEKEY_WHEEL_MAX_SPEED	            128	// 8  Maximum number of scroll steps per scroll action
+#define MOUSEKEY_WHEEL_TIME_TO_MAX	            5	// 40 Time until maximum scroll speed is reached
+
+#define MK_W_OFFSET_0	1	                        // 1	Scroll steps per scroll action (KC_ACL0)
+#define MK_W_INTERVAL_0	100	                        // 360	Time between scroll steps (KC_ACL0)
+#define MK_W_OFFSET_1	1	                        // 1	Scroll steps per scroll action (KC_ACL1)
+#define MK_W_INTERVAL_1	40	                        // 120	Time between scroll steps (KC_ACL1)
+#define MK_W_OFFSET_2	4	                        // 1	Scroll steps per scroll action (KC_ACL2)
+#define MK_W_INTERVAL_2	0	                        // 20	Time between scroll steps (KC_ACL2)

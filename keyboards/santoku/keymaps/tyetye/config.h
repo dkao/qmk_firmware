@@ -27,39 +27,30 @@
 
 // defines to help make home row mods more reliable
 #define TAPPING_TOGGLE 2  /* How many times TT(__layer__) needs to be tapped to stick */
-// #define IGNORE_MOD_TAP_INTERRUPT
-//#define TAPPING_FORCE_HOLD
-//#define TAPPING_FORCE_HOLD_PER_KEY
 #define TAPPING_TERM 200
 
 // defines for making the Trackpoint more fluid
 #define PS2_MOUSE_USE_REMOTE_MODE
 
 // defines for tuning the OLED
-//#define OLED_SCROLL_TIMEOUT 50
-#define OLED_TIMEOUT 10000
-#define OLED_UPDATE_INTERVAL 100
+#define OLED_TIMEOUT 15000
+#define OLED_UPDATE_INTERVAL 0
 #define OLED_FADE_OUT
 #define OLED_FADE_OUT_INTERVAL 2
+#define OLED_UPDATE_PROCESS_LIMIT 4
 
 // defines for the CAPS_WORD feature
 #define BOTH_SHIFTS_TURNS_ON_CAPS_WORD
 #define CAPS_WORD_IDLE_TIMEOUT 5000
 
-//#define HOLD_ON_OTHER_KEY_PRESS
-//#define COMBO_ALLOW_ACTION_KEYS
 
 // defines for the mouse scroll wheel (which probably don't work for the scroll wheel because it's based on clicks instead of holding the key down)
-//#define MK_KINETIC_SPEED
-//#define MK_MOMENTARY_ACCEL
-#define MOUSEKEY_DELAY	10	// Delay between pressing a movement key and cursor movement
-#define MOUSEKEY_INTERVAL	20	// Time between cursor movements in milliseconds
-#define MOUSEKEY_MOVE_DELTA	8	// Step size
-#define MOUSEKEY_MAX_SPEED	10	// Maximum cursor speed at which acceleration stops
-#define MOUSEKEY_TIME_TO_MAX	30	// Time until maximum cursor speed is reached
-#define MOUSEKEY_WHEEL_DELAY	10	// Delay between pressing a wheel key and wheel movement
-#define MOUSEKEY_WHEEL_INTERVAL	80	// Time between wheel movements
-#define MOUSEKEY_WHEEL_MAX_SPEED	8	// Maximum number of scroll steps per scroll action
-#define MOUSEKEY_WHEEL_TIME_TO_MAX	40	// Time until maximum scroll speed is reached
-
-//#define WPM_LAUNCH_CONTROL    // https://docs.qmk.fm/#/feature_wpm?id=word-per-minute-wpm-calculcation
+//#define MOUSEKEY_DELAY	10	// Delay between pressing a movement key and cursor movement
+//#define MOUSEKEY_INTERVAL	20	// Time between cursor movements in milliseconds
+//#define MOUSEKEY_MOVE_DELTA	8	// Step size
+//#define MOUSEKEY_MAX_SPEED	10	// Maximum cursor speed at which acceleration stops
+//#define MOUSEKEY_TIME_TO_MAX	30	// Time until maximum cursor speed is reached
+//#define MOUSEKEY_WHEEL_DELAY	10	// Delay between pressing a wheel key and wheel movement
+//#define MOUSEKEY_WHEEL_INTERVAL	80	// Time between wheel movements
+//#define MOUSEKEY_WHEEL_MAX_SPEED	8	// Maximum number of scroll steps per scroll action
+//#define MOUSEKEY_WHEEL_TIME_TO_MAX	40	// Time until maximum scroll speed is reached

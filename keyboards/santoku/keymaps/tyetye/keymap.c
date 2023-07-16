@@ -1,4 +1,4 @@
-/* Copyright 2022 Tye (@tyetye)
+/* Copyright 2023 Tye (@tyetye)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ Desired TODOs:
 #include "ps2.h"
 #endif
 
-#define VANITY_TIMEOUT 5000
+#define VANITY_TIMEOUT 2500
 #define ___x___ XXXXXXX
 
 #define USER_CONFIG_SIGNATURE 0xDA7A // Used to determine if EEPROM has previously saved Settings already
@@ -296,7 +296,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, TO(_QWERTY), ___x___},
         {___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, SETTINGS_EXIT, ___x___, ___x___, ___x___}
     }
-    ,};
+    };
 
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -348,7 +348,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                                          adjust_setting_uint16(&mouse_rotation_angle, adjustment, 0, 359);
                                      }
                                      else if (settings_selected_setting == SETTING_ALT_TAB_TIMEOUT) {
-                                         adjust_setting_uint16(&alt_tab_timeout, adjustment * 25, 100, 1200);
+                                         adjust_setting_uint16(&alt_tab_timeout, adjustment * 25, 100, 1500);
                                      }
                                      else if (settings_selected_setting == SETTING_TP_ACCELERATION) {
                                          adjust_setting_uint8(&acceleration_setting, adjustment, 0, 5);
@@ -360,9 +360,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                                          adjust_setting_uint8(&drag_scroll_speed_setting, adjustment, 0, 5);
                                      }
                                      else if (settings_selected_setting == SETTING_PINKY_SHIFT) {
-                                         //    adjust_setting_uint8(&is_pinky_shift_keys_active, adjustment, 0, 1);
                                          is_pinky_shift_keys_active = !is_pinky_shift_keys_active;
-                                         //oled_write_ln_P(PSTR("Toggled Pinky"), false);
                                      }
                                  }
                                  return true;
@@ -433,6 +431,7 @@ void process_combo_event(uint16_t combo_index, bool pressed) {
 void matrix_scan_user(void) {
     if (!is_alt_tab_pressed && timer_elapsed(alt_tab_timer) > alt_tab_timeout) {
         unregister_code(KC_LALT);
+        alt_tab_timer = 0;
     }
 }
 
@@ -452,14 +451,11 @@ bool oled_task_user(void) {
             oled_clear();
         }
     }
-    else if (is_alt_tab_pressed ) {
-        oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
-    }
     else {
         switch (get_highest_layer(layer_state)) {
             case _QWERTY:
-                if (is_alt_tab_pressed || ((alt_tab_timer < alt_tab_timeout) && alt_tab_timer > 0)) {
-                    oled_write_ln_P(PSTR("   ALT-TAB ACTIVE   "), true);
+                if (is_alt_tab_pressed || alt_tab_timer > 0) {
+                    oled_write_ln_P(PSTR("   Alt-Tab Active   "), true);
                 } else if ((host_keyboard_leds() & (1<<USB_LED_CAPS_LOCK))) {
                     oled_write_ln_P(PSTR("      Caps Lock     "), true);
                 } else if ( is_caps_word_on() ) {
@@ -515,7 +511,7 @@ bool oled_task_user(void) {
                 oled_write_ln_P(PSTR(""), false);
                 update_settings_display();
                 oled_write_ln_P(PSTR(""), false);
-                oled_write_ln_P(PSTR("HJKL SELECT,Esc EXIT"), false);
+                oled_write_ln_P(PSTR("HJKL Select,ESC Save"), false);
                 break;
         }
     }
@@ -570,85 +566,16 @@ void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report) {
     mouse_report->y = round(sin(radians) * current_x + cos(radians) * current_y);
 }
 
-#ifdef ENCODER_ENABLE
-
-/*
-   The Trackpoint polling causes small delays in the keyboard/matrix polling.
-   This shows up as minor tearing in the OLED redraw and
-   scrollwheel spinning. The code in encoder_update_user is a quick and dirty
-   attempt to try a few different methods to smooth out the variations in the
-   scrollwheel readings. (It will *not* increase the actual polling rate)
-   I believe this delay is deep in the QMK implementation. Also PS2 is a crotchety old standard.
-   */
 bool encoder_update_user(uint8_t index, bool clockwise) {
-    // float step_values[10] = {2.0, 2.0, 1.8, 1.8, 1.6, 1.6, 1.4, 1.4, 1.2, 1.0};
-    // float step_values[10] = {3.0, 3.0, 3.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0};
-    // float step_values[10] = {2.4, 2.2, 2.0, 1.8, 1.6, 1.4, 1.2, 1.0, 0.8, 0.6};
-    // float step_values[10] = {1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1};
-    // float step_values[10] = {.65, .50, .55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2};
-    // float step_values[10] = { .35, 0.35, 0.30, 0.30, 0.25, 0.25, 0.20, 0.20, 0.15, 0.15};
-    // float step_values[10] = { .30, 0.20, 0.20, 0.20, 0.20, 0.20, 0.10, 0.10, 0.10, 0.10};
-    // float step_values[10] = { .40, .40, .35, 0.35, 0.30, 0.30, 0.25, 0.25, 0.20, 0.20};
-    // float step_values[11] = {2.0, 1,8, 1.6, 1.4, 1.2, 1.0, 0.8, 0.6, 0.4, 0.2};
-    // float step_values[10] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+    //report_mouse_t currentReport     = pointing_device_get_report();
+    //currentReport.v = 2 * (clockwise ? 1 : -1);
+    clockwise ? tap_code(KC_MS_WH_UP) : tap_code(KC_MS_WH_DOWN);
 
-    //wait_ms(10);
-    float step_values[10] = {0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2};
-    report_mouse_t currentReport     = pointing_device_get_report();
-
-    static uint16_t encoder_timer    = 0;
-    static uint16_t timer_difference = 0;
-    static uint16_t hard_delay_max   = 30;
-    static bool     previous_direction;
-
-    timer_difference = timer_elapsed(encoder_timer);
-
-    //if (timer_difference > 50) return true;
-
-    //if (clockwise != previous_direction && timer_difference < 50 ) {
-    if (clockwise != previous_direction && timer_difference < 30 ) {
-        clockwise = previous_direction;
-    }
-
-    oled_write_P(PSTR("delay:"), false);
-    oled_write_ln(get_u8_str(timer_difference, ' '), false);
-
-    if (timer_difference < hard_delay_max) {
-        wait_ms(hard_delay_max - timer_difference);
-        //wait_ms(hard_delay_max);
-        //wait_ms(hard_delay_max);
-    }
-    /*
-       if (timer_difference < hard_delay_max-10) {
-       wait_ms(hard_delay_max-10 );
-       }
-       else if (timer_difference < hard_delay_max-5) {
-       wait_ms(hard_delay_max-5 );
-       }
-       else if (timer_difference < hard_delay_max) {
-       wait_ms(hard_delay_max);
-       }
-       */
-    if (scroll_wheel_test_setting == DEFAULT) {
-        //currentReport.v = (clockwise ? 1.0 : -1.0);
-        //currentReport.v = 0 * (clockwise ? 1.0 : -1.0);
-    }
-    else if (scroll_wheel_test_setting == DEFAULT_FASTER) {
-        currentReport.v = 0 * (clockwise ? 1.0 : -1.0);
-    }
-    else if (scroll_wheel_test_setting == FANCY) {
-        currentReport.v = step_values[ timer_difference / 10] * (clockwise ? 1.0 : -1.0);
-    }
-    else if (scroll_wheel_test_setting == FANCY2) {
-        clockwise ? tap_code(KC_WH_U) : tap_code(KC_WH_D);
-    }
-    pointing_device_set_report(currentReport);
-    pointing_device_send();
-    encoder_timer = timer_read();
-    previous_direction = clockwise;
-    return true;
+    //pointing_device_set_report(currentReport);
+    //pointing_device_send();
+    return false;
 }
-#endif
+
 
 void ps2_mouse_init_user(void) {
     uint8_t rcv;
@@ -710,12 +637,15 @@ void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, u
     else {
         //*setting += adjustment;
         uint16_t new_value = *setting + adjustment;
-        if (new_value > max)
+        if (new_value > max) {
             *setting = min;
-        else if (new_value < min)
+        }
+        else if (new_value < min) {
             *setting = max;
-        else
+        }
+        else {
             *setting = new_value;
+        }
     }
 }
 
@@ -729,12 +659,15 @@ void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint
     else {
         //*setting += adjustment;
         uint16_t new_value = *setting + adjustment;
-        if (new_value > max)
+        if (new_value > max) {
             *setting = min;
-        else if (new_value < min)
+        }
+        else if (new_value < min) {
             *setting = max;
-        else
+        }
+        else {
             *setting = new_value;
+        }
     }
 }
 
@@ -747,10 +680,19 @@ void scroll_settings(int8_t direction) {
     int8_t max_selected_setting = NUM_SETTINGS - 1;
 
     // handle edge cases
-    if (settings_scroll_position < 0) settings_scroll_position = 0;
-    if (settings_scroll_position > max_scroll_position) settings_scroll_position = max_scroll_position;
-    if (settings_selected_setting < 0) settings_selected_setting = 0;
-    if (settings_selected_setting > max_selected_setting) settings_selected_setting = max_selected_setting;
+    if (settings_scroll_position < 0) {
+        settings_scroll_position = 0;
+    }
+    else if (settings_scroll_position > max_scroll_position) {
+        settings_scroll_position = max_scroll_position;
+    }
+
+    if (settings_selected_setting < 0) {
+        settings_selected_setting = 0;
+    }
+    else if (settings_selected_setting > max_selected_setting) {
+        settings_selected_setting = max_selected_setting;
+    }
 }
 
 // Loops through the visible Settings on the Settings screen to display them
@@ -823,7 +765,7 @@ void display_int(setting_id_t id, bool is_current) {
 
 // Used by update_display_settings to provide some text for Settings that aren't finished yet.
 void display_placeholder(setting_id_t id, bool is_current) {
-    oled_write_ln_P(PSTR("Not Done"), is_current);
+    oled_write_ln_P(PSTR("   (WIP)"), is_current);
 }
 
 

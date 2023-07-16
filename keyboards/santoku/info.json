@@ -4,7 +4,7 @@
     "url": "https://www.gestaltinput.com",
     "maintainer": "tyetye",
     "usb": {
-        "vid": "0xC1ED",
+        "vid": "0x03A8",
         "pid": "0x23B0",
         "device_version": "1.0.0"
     },
