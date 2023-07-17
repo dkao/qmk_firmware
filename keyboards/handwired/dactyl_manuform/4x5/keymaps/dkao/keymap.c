@@ -146,6 +146,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                                      KC_TAB,  KC_HOME,  KC_END,  KC_DEL,
                                                      RAISE,   KC_GRV,   KC_LGUI, LOWER
     ),
+#elif 1
+    [_BASE] = LAYOUT_fix(
+        KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                                         KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN,
+        KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                                         KC_M,    KC_N,    KC_E,    KC_I,    KC_O,
+        KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,                                         KC_K,    KC_H,    KC_COMM, KC_DOT,  KC_QUOT,
+                          KC_LBRC, KC_RBRC,                                                        KC_MINS, KC_EQL,
+                                                     SFT_ESC, KC_BSPC,   KC_SPC, SFT_ENT,
+                                                     KC_TAB,  KC_LCTL,  KC_LALT, KC_DEL,
+                                                     RAISE,   KC_GRV,   KC_LGUI, LOWER
+    ),
 #else
 	/* Colemak-Qi */
     [_BASE] = LAYOUT_fix(
@@ -190,7 +200,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                                      KC_TAB,  KC_HOME,  KC_END,  KC_DEL,
                                                      RAISE,   KC_GRV,   KC_LGUI, LOWER
     ),
-#else
+#elif 0
 	/* APTv3 */
     [_QWERTY] = LAYOUT_fix(
         KC_W,    KC_G,    KC_D,    KC_F,    KC_B,                                         KC_Q,    KC_L,    KC_U,    KC_O,    KC_Y,
@@ -199,6 +209,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                           KC_LBRC, KC_RBRC,                                                        KC_MINS, KC_EQL,
                                                      SFT_ESC, CTL_BSPC, ALT_SPC, SFT_ENT,
                                                      KC_TAB,  KC_HOME,  KC_END,  KC_DEL,
+                                                     RAISE,   KC_GRV,   KC_LGUI, LOWER
+    ),
+#else
+    [_QWERTY] = LAYOUT_fix(
+        KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,                                         KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN,
+        KC_A,    KC_R,    KC_S,    KC_T,    KC_G,                                         KC_M,    KC_N,    KC_E,    KC_I,    KC_O,
+        KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,                                         KC_K,    KC_H,    KC_COMM, KC_DOT,  KC_QUOT,
+                          KC_LBRC, KC_RBRC,                                                        KC_MINS, KC_EQL,
+                                                     SFT_ESC, KC_BSPC,  KC_SPC,  SFT_ENT,
+                                                     KC_LCTL, KC_TAB,   KC_DEL,  KC_LALT,
                                                      RAISE,   KC_GRV,   KC_LGUI, LOWER
     ),
 #endif
@@ -290,11 +310,21 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                                      _______, UTILITY,  _______, _______,
                                                      _______, _______,  _______, _______
     ),
-#else
+#elif 0
     [_RAISE] = LAYOUT_fix(
         _______, _______, KC_MU,   _______, _______,                                      KC_VOLU, _______, KC_UP,   _______, KC_PGUP,
-        KC_F24,  KC_ML,   KC_MD,   KC_MR,   _______,                                      KC_MUTE, KC_LEFT, KC_DOWN, KC_RGHT, KC_PGDN,
-        KC_BTN4, KC_BTN5, KC_F24,  KC_BTN3, _______,                                      KC_VOLD, KC_SLSH, KC_BSLS, KC_QUES, KC_PIPE,
+        KC_F24,  KC_ML,   KC_MD,   KC_MR,   KC_BTN3,                                      KC_MUTE, KC_LEFT, KC_DOWN, KC_RGHT, KC_PGDN,
+        KC_BTN4, KC_BTN5, KC_F24,  KC_BTN1, KC_BTN2,                                      KC_VOLD, KC_SLSH, KC_BSLS, KC_QUES, KC_PIPE,
+                 KC_WH_U, KC_WH_D,                                                                          KC_BTN1, KC_BTN2,
+                                   _______, _______,                                      _______, _______,
+                                                     _______, UTILITY,  _______, _______,
+                                                     _______, _______,  _______, _______
+    ),
+#else
+    [_RAISE] = LAYOUT_fix(
+        _______, _______, KC_MU,   _______, _______,                                      KC_VOLU, KC_HOME, KC_UP,   KC_END,  KC_PGUP,
+        KC_F24,  KC_ML,   KC_MD,   KC_MR,   KC_BTN3,                                      KC_MUTE, KC_LEFT, KC_DOWN, KC_RGHT, KC_PGDN,
+        KC_BTN4, KC_BTN5, KC_F24,  KC_BTN1, KC_BTN2,                                      KC_VOLD, KC_SLSH, KC_BSLS, KC_QUES, KC_PIPE,
                  KC_WH_U, KC_WH_D,                                                                          KC_BTN1, KC_BTN2,
                                    _______, _______,                                      _______, _______,
                                                      _______, UTILITY,  _______, _______,
@@ -456,6 +486,19 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 void persistent_default_layer_set(uint16_t default_layer) {
     eeconfig_update_default_layer(default_layer);
     default_layer_set(default_layer);
+}
+
+bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        //case LT(1, KC_BSPC):
+	case SFT_ESC:
+	case SFT_ENT:
+            // Immediately select the hold action when another key is pressed.
+            return true;
+        default:
+            // Do not select the hold action when another key is pressed.
+            return false;
+    }
 }
 
 #define SOCD_CLEANER_LRN_UDU
@@ -628,3 +671,181 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 	return true;
 }
 #endif
+
+#ifndef DEBOUNCE
+#    define DEBOUNCE 5
+#endif
+
+// Maximum debounce: 255ms
+#if DEBOUNCE > UINT8_MAX
+#    undef DEBOUNCE
+#    define DEBOUNCE UINT8_MAX
+#endif
+
+#define ROW_SHIFTER ((matrix_row_t)1)
+
+typedef uint8_t debounce_counter_t;
+
+static debounce_counter_t *debounce_counters;
+static fast_timer_t        last_time;
+static bool                counters_need_update;
+static bool                matrix_need_update;
+static bool                cooked_changed;
+static bool                last_eager;
+
+#    define DEBOUNCE_ELAPSED 0
+
+static void update_debounce_counters(uint8_t num_rows, uint8_t elapsed_time);
+static void transfer_matrix_values(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows);
+static void update_debounce_counters_and_transfer_if_expired(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, uint8_t elapsed_time);
+static void start_debounce_counters(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows);
+
+// we use num_rows rather than MATRIX_ROWS to support split keyboards
+void debounce_init(uint8_t num_rows) {
+    debounce_counters = (debounce_counter_t *)malloc(num_rows * MATRIX_COLS * sizeof(debounce_counter_t));
+    int i             = 0;
+    for (uint8_t r = 0; r < num_rows; r++) {
+        for (uint8_t c = 0; c < MATRIX_COLS; c++) {
+            debounce_counters[i++] = DEBOUNCE_ELAPSED;
+        }
+    }
+}
+
+void debounce_free(void) {
+    free(debounce_counters);
+    debounce_counters = NULL;
+}
+
+bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool changed) {
+    bool updated_last = false;
+    bool use_eager = (IS_LAYER_ON(_SHMUP) || IS_LAYER_ON(_FPS1) || IS_LAYER_ON(_FPS2));
+    cooked_changed    = false;
+
+    if (use_eager != last_eager) {
+        counters_need_update = false;
+        matrix_need_update = true;
+        int i             = 0;
+        for (uint8_t r = 0; r < num_rows; r++) {
+            for (uint8_t c = 0; c < MATRIX_COLS; c++) {
+                debounce_counters[i++] = DEBOUNCE_ELAPSED;
+            }
+        }
+        last_eager = use_eager;
+    }
+
+    if (counters_need_update) {
+        fast_timer_t now          = timer_read_fast();
+        fast_timer_t elapsed_time = TIMER_DIFF_FAST(now, last_time);
+
+        last_time    = now;
+        updated_last = true;
+        if (elapsed_time > UINT8_MAX) {
+            elapsed_time = UINT8_MAX;
+        }
+
+        if (elapsed_time > 0) {
+            if (use_eager) {
+                update_debounce_counters(num_rows, elapsed_time);
+            } else {
+                update_debounce_counters_and_transfer_if_expired(raw, cooked, num_rows, elapsed_time);
+            }
+        }
+    }
+
+    if (changed || matrix_need_update) {
+        if (!updated_last) {
+            last_time = timer_read_fast();
+        }
+
+        if (use_eager) {
+            transfer_matrix_values(raw, cooked, num_rows);
+        } else {
+            start_debounce_counters(raw, cooked, num_rows);
+        }
+    }
+
+    return cooked_changed;
+}
+
+// If the current time is > debounce counter, set the counter to enable input.
+static void update_debounce_counters(uint8_t num_rows, uint8_t elapsed_time) {
+    counters_need_update                 = false;
+    matrix_need_update                   = false;
+    debounce_counter_t *debounce_pointer = debounce_counters;
+    for (uint8_t row = 0; row < num_rows; row++) {
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if (*debounce_pointer != DEBOUNCE_ELAPSED) {
+                if (*debounce_pointer <= elapsed_time) {
+                    *debounce_pointer  = DEBOUNCE_ELAPSED;
+                    matrix_need_update = true;
+                } else {
+                    *debounce_pointer -= elapsed_time;
+                    counters_need_update = true;
+                }
+            }
+            debounce_pointer++;
+        }
+    }
+}
+
+// upload from raw_matrix to final matrix;
+static void transfer_matrix_values(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows) {
+    matrix_need_update                   = false;
+    debounce_counter_t *debounce_pointer = debounce_counters;
+    for (uint8_t row = 0; row < num_rows; row++) {
+        matrix_row_t delta        = raw[row] ^ cooked[row];
+        matrix_row_t existing_row = cooked[row];
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            matrix_row_t col_mask = (ROW_SHIFTER << col);
+            if (delta & col_mask) {
+                if (*debounce_pointer == DEBOUNCE_ELAPSED) {
+                    *debounce_pointer    = DEBOUNCE;
+                    counters_need_update = true;
+                    existing_row ^= col_mask; // flip the bit.
+                    cooked_changed = true;
+                }
+            }
+            debounce_pointer++;
+        }
+        cooked[row] = existing_row;
+    }
+}
+
+static void update_debounce_counters_and_transfer_if_expired(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, uint8_t elapsed_time) {
+    counters_need_update                 = false;
+    debounce_counter_t *debounce_pointer = debounce_counters;
+    for (uint8_t row = 0; row < num_rows; row++) {
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if (*debounce_pointer != DEBOUNCE_ELAPSED) {
+                if (*debounce_pointer <= elapsed_time) {
+                    *debounce_pointer        = DEBOUNCE_ELAPSED;
+                    matrix_row_t cooked_next = (cooked[row] & ~(ROW_SHIFTER << col)) | (raw[row] & (ROW_SHIFTER << col));
+                    cooked_changed |= cooked[row] ^ cooked_next;
+                    cooked[row] = cooked_next;
+                } else {
+                    *debounce_pointer -= elapsed_time;
+                    counters_need_update = true;
+                }
+            }
+            debounce_pointer++;
+        }
+    }
+}
+
+static void start_debounce_counters(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows) {
+    debounce_counter_t *debounce_pointer = debounce_counters;
+    for (uint8_t row = 0; row < num_rows; row++) {
+        matrix_row_t delta = raw[row] ^ cooked[row];
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if (delta & (ROW_SHIFTER << col)) {
+                if (*debounce_pointer == DEBOUNCE_ELAPSED) {
+                    *debounce_pointer    = DEBOUNCE;
+                    counters_need_update = true;
+                }
+            } else {
+                *debounce_pointer = DEBOUNCE_ELAPSED;
+            }
+            debounce_pointer++;
+        }
+    }
+}
