@@ -1,0 +1,27 @@
+{
+    "keyboard_name": "Twist-to-Scroll Trackball",
+    "manufacturer": "JLCPCB",
+    "usb": {
+        "vid": "0xCAFE",
+        "pid": "0xBADA",
+        "device_version": "0.0.1"
+    },
+    "processor": "RP2040",
+    "bootloader": "rp2040",
+    "matrix_pins": {
+        "direct": [
+            ["GP16", "GP24"],
+            ["GP17", "GP26"]
+        ]
+    },
+    "layouts": {
+        "LAYOUT": {
+            "layout": [
+                {"x": 0, "y": 0, "matrix": [0, 0]},
+                {"x": 0, "y": 1, "matrix": [0, 1]},
+                {"x": 3, "y": 0, "matrix": [1, 0]},
+                {"x": 3, "y": 1, "matrix": [1, 1]}
+            ]
+        }
+    }
+}

@@ -1,0 +1,22 @@
+{
+    "keyboard_name": "Trackball 15d",
+    "manufacturer": "JLCPCB",
+    "usb": {
+        "vid": "0xCAFE",
+        "pid": "0xBABA",
+        "device_version": "0.0.1"
+    },
+    "processor": "RP2040",
+    "bootloader": "rp2040",
+    "matrix_pins": {
+        "direct": [["GP16", "GP17"]]
+    },
+    "layouts": {
+        "LAYOUT": {
+            "layout": [
+                {"x": 0, "y": 0, "matrix": [0, 0]},
+                {"x": 3, "y": 0, "matrix": [0, 1]}
+            ]
+        }
+    }
+}
