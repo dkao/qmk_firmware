@@ -67,7 +67,7 @@ Desired TODOs:
 #include "ps2.h"
 #endif
 
-#define VANITY_TIMEOUT 2500
+#define VANITY_TIMEOUT 5000
 #define ___x___ XXXXXXX
 
 #define USER_CONFIG_SIGNATURE 0xDA7A // Used to determine if EEPROM has previously saved Settings already
@@ -174,6 +174,7 @@ combo_t key_combos[NUM_COMBOS] = {
 // Forward declarations
 void scroll_settings(int8_t direction);
 void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report);
+void cordic_rotate( uint16_t angle, report_mouse_t *mouse_report);
 void update_settings_display(void);
 void adjust_setting_uint16(uint16_t *setting, int8_t adjustment, uint16_t min, uint16_t max);
 void adjust_setting_uint8(uint8_t *setting, int8_t adjustment, uint8_t min, uint8_t max);
@@ -183,6 +184,7 @@ void display_placeholder(setting_id_t id, bool is_current);
 void display_int(setting_id_t id, bool is_current);
 void display_progress_x6(setting_id_t id, bool is_current);
 void display_bool(setting_id_t id, bool is_current);
+void scale_mouse_vector(report_mouse_t *mouse_report);
 setting_t settings[NUM_SETTINGS] = {
     {SETTING_TP_ACCELERATION,       "TP Accel    ",      display_progress_x6},
     {SETTING_TP_SPEED,              "TP Speed    ",      display_progress_x6},
@@ -438,14 +440,14 @@ void matrix_scan_user(void) {
 #ifdef OLED_ENABLE
 bool oled_task_user(void) {
     static bool show_vanity_text = true;
+
     if (show_vanity_text) {
-        uint32_t vanity_timeout = VANITY_TIMEOUT;
         oled_write_ln_P(PSTR("   Santoku Keyboard"), false);
         oled_write_ln_P(PSTR("   gestaltinput.com"), false);
         oled_write_ln_P(PSTR(""), false);
         oled_write_ln_P(PSTR("     Hello, World"), false);
         oled_write_raw_P(santoku_logo, sizeof(santoku_logo) );
-        if (timer_read() > vanity_timeout) {
+        if (timer_read() > VANITY_TIMEOUT) {
             show_vanity_text = false;
             // clear the oled buffer to clear any image remnants from bootup graphics. Not needed if image not too wide.
             oled_clear();
@@ -513,6 +515,7 @@ bool oled_task_user(void) {
                 oled_write_ln_P(PSTR(""), false);
                 oled_write_ln_P(PSTR("HJKL Select,ESC Save"), false);
                 break;
+
         }
     }
 
@@ -521,28 +524,22 @@ bool oled_task_user(void) {
 #endif
 
 
+void scale_mouse_vector_optimized(report_mouse_t *mouse_report);
+void rotate_mouse_coordinates_optimized(uint16_t angle, report_mouse_t *mouse_report);
 
 // TODO: Move the speed and acceleration code into a separate function to make more modular
 // TODO: Move the drag scroll counter code into a separate function to make more modular
 // TODO: Move the mouse acceleration and speed code into a separate function, like rotate_mouse_coordinates()
 // TODO: If possible, don't convert values back to int between functions. Keep as floats, round one time at the end.
 void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
-    rotate_mouse_coordinates(mouse_rotation_angle, mouse_report);
-    // The math below turns the Trackpoint x and y reports (movements) into a vector and scales the vector with some trigonometry.
-    // This allows the user to dynamically adjust the mouse cursor sensitivity to their liking.
-    // It also results in arguably smoother movement than just multiplying the x and y values by some fixed value.
-    // (and yeah, there's some unnecessary/redundant math going here. I'm hoping to lay the foundation for things like software adjustable negative inertia.)
-    if (mouse_report->x != 0 || mouse_report->y != 0) {
-        float hypotenuse        = sqrt((mouse_report->x * mouse_report->x) + (mouse_report->y * mouse_report->y));
-        float scaled_hypotenuse = pow(hypotenuse, acceleration_values[acceleration_setting]) / linear_reduction_values[linear_reduction_setting];
-        float angle             = atan2(mouse_report->y, mouse_report->x);
-        mouse_report->x += (scaled_hypotenuse * cos(angle));
-        mouse_report->y += (scaled_hypotenuse * sin(angle));
-    }
+    scale_mouse_vector_optimized(mouse_report);
+    rotate_mouse_coordinates_optimized(mouse_rotation_angle, mouse_report);
+
     // Drag scrolling with the Trackpoint is reported so often that it makes the feature unusable without slowing it down.
     // The below code only reports when the counter is evenly divisible by the chosen integer speed.
     // Skipping reports is technically, probably, not ideal. I'd like to find a way to send a slower speed without skipping.
     // As is, however, it works well and is user configurable from the Options screen.
+    // TODO: Break out into dedicated function
     static uint16_t drag_scroll_counter = 0;
     drag_scroll_counter == 40320 ? drag_scroll_counter = 0 : drag_scroll_counter++ ; // Because 8!==40320 (allows clean mod divisibility and avoids scrolling surge when resetting to 0)
     if ((mouse_report->v != 0 || mouse_report->h != 0) && drag_scroll_counter % drag_scroll_speed_values[drag_scroll_speed_setting] != 0) {
@@ -551,20 +548,114 @@ void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     }
 }
 
-void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report) {
-    // because pi/180 = 0.017453
-    static const float degree = 0.017453f;
+inline float fast_approximate_square_root(float input_number);
+// Fast approximation for square root
+inline float fast_approximate_square_root(float input_number) {
+    long bit_representation;
+    float half_input, approximate_result;
+    const float constant_for_approximation = 1.5F;
 
-    float radians = angle * degree;
+    half_input = input_number * 0.5F;
+    approximate_result = input_number;
+    bit_representation = *(long*)&approximate_result;
+    bit_representation = 0x5f3759df - (bit_representation >> 1);
+    approximate_result = *(float*)&bit_representation;
+    approximate_result = approximate_result * (constant_for_approximation - (half_input * approximate_result * approximate_result));
 
-    // Need to save these values because we rewrite mouse_report->x immediately but reuse the value to find the rotated y value
-    int current_x = mouse_report->x;
-    int current_y = mouse_report->y;
-
-    // Calculate rotated x & y, convert back to an int
-    mouse_report->x = round(cos(radians) * current_x - sin(radians) * current_y);
-    mouse_report->y = round(sin(radians) * current_x + cos(radians) * current_y);
+    return 1 / approximate_result;
 }
+
+inline float fast_approximate_power(float base_value, float exponent_value);
+// Fast approximation for power function
+inline float fast_approximate_power(float base_value, float exponent_value) {
+    union {
+        float float_value;
+        int int_value;
+    } union_representation = { base_value };
+
+    union_representation.int_value = (int)(exponent_value * (union_representation.int_value - 1064866805) + 1064866805);
+
+    return union_representation.float_value;
+}
+
+void scale_mouse_vector_optimized(report_mouse_t *mouse_report) {
+    // Convert integers to float for calculations
+    float x = (float)mouse_report->x;
+    float y = (float)mouse_report->y;
+
+    // Using fast square root and power approximations
+    float hypotenuse = fast_approximate_square_root(x * x + y * y);
+    float scaled_hypotenuse = fast_approximate_power(hypotenuse, acceleration_values[acceleration_setting]) / linear_reduction_values[linear_reduction_setting];
+
+    // Eliminating redundant trigonometric calculations
+    float cos_angle = x / hypotenuse;
+    float sin_angle = y / hypotenuse;
+
+    // Convert float back to integer with rounding
+    mouse_report->x += (int)(scaled_hypotenuse * cos_angle + 0.5);
+    mouse_report->y += (int)(scaled_hypotenuse * sin_angle + 0.5);
+}
+
+
+void rotate_mouse_coordinates_optimized(uint16_t angle, report_mouse_t *mouse_report) {
+    if (angle == 0) {
+        return;
+    }
+
+    // Pre-calculate conversion factor; this assumes angle rarely changes
+    static float last_angle = 0;
+    static float precomputed_cosine = 1.0;
+    static float precomputed_sine = 0.0;
+    if (last_angle != angle) {
+        static const float degree_to_radian_conversion = 0.017453f;
+        float radians = angle * degree_to_radian_conversion;
+        precomputed_cosine = cos(radians);
+        precomputed_sine = sin(radians);
+        last_angle = angle;
+    }
+
+    // Cache current x and y coordinates to reduce memory access
+    int cached_mouse_x = mouse_report->x;
+    int cached_mouse_y = mouse_report->y;
+
+    // Use precomputed trigonometric values
+    mouse_report->x = round(precomputed_cosine * cached_mouse_x - precomputed_sine * cached_mouse_y);
+    mouse_report->y = round(precomputed_sine * cached_mouse_x + precomputed_cosine * cached_mouse_y);
+}
+
+
+
+/* void scale_mouse_vector(report_mouse_t *mouse_report) { */
+/*     // The math below turns the Trackpoint x and y reports (movements) into a vector and scales the vector with some trigonometry. */
+/*     // This allows the user to dynamically adjust the mouse cursor sensitivity to their liking. */
+/*     // It also results in arguably smoother movement than just multiplying the x and y values by some fixed value. */
+/*     // (and yeah, there's some unnecessary/redundant math going here. I'm hoping to lay the foundation for things like software adjustable negative inertia.) */
+/*         float hypotenuse        = sqrt((mouse_report->x * mouse_report->x) + (mouse_report->y * mouse_report->y)); */
+/*         float scaled_hypotenuse = pow(hypotenuse, acceleration_values[acceleration_setting]) / linear_reduction_values[linear_reduction_setting]; */
+/*         float angle             = atan2(mouse_report->y, mouse_report->x); */
+/*         mouse_report->x += (scaled_hypotenuse * cos(angle)); */
+/*         mouse_report->y += (scaled_hypotenuse * sin(angle)); */
+
+/* } */
+
+/* void rotate_mouse_coordinates(uint16_t angle, report_mouse_t *mouse_report) { */
+/*     if (angle == 0) { */
+/*         return; */
+/*     } */
+/*     // because pi/180 = 0.017453 */
+/*     static const float degree = 0.017453f; */
+
+/*     float radians = angle * degree; */
+
+/*     // Need to save these values because we rewrite mouse_report->x immediately but reuse the value to find the rotated y value */
+/*     int current_x = mouse_report->x; */
+/*     int current_y = mouse_report->y; */
+
+/*     // Calculate rotated x & y, convert back to an int */
+/*     mouse_report->x = round(cos(radians) * current_x - sin(radians) * current_y); */
+/*     mouse_report->y = round(sin(radians) * current_x + cos(radians) * current_y); */
+/* } */
+
 
 bool encoder_update_user(uint8_t index, bool clockwise) {
     //report_mouse_t currentReport     = pointing_device_get_report();
@@ -575,6 +666,7 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
     //pointing_device_send();
     return false;
 }
+
 
 
 void ps2_mouse_init_user(void) {

@@ -34,7 +34,7 @@
 
 // defines for tuning the OLED
 #define OLED_TIMEOUT 15000
-#define OLED_UPDATE_INTERVAL 0
+#define OLED_UPDATE_INTERVAL 100
 #define OLED_FADE_OUT
 #define OLED_FADE_OUT_INTERVAL 2
 #define OLED_UPDATE_PROCESS_LIMIT 4
