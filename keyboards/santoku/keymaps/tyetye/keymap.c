@@ -76,6 +76,12 @@ Desired TODOs:
 #define NUM_DISPLAY_ROWS 4
 
 typedef enum {
+    ALTTAB_INACTIVE,
+    ALTTAB_PRESSED,
+    ALTTAB_WAITING,
+} alttab_t;
+
+typedef enum {
     SETTING_TP_ACCELERATION,
     SETTING_TP_SPEED,
     SETTING_TP_SCROLL_SPEED,
@@ -199,7 +205,8 @@ setting_t settings[NUM_SETTINGS] = {
 };
 
 // One tap alt-tab controls. Improvement to the code example from: https://docs.qmk.fm/#/feature_macros?id=super-alt%e2%86%aftab
-bool     is_alt_tab_pressed = false;
+alttab_t is_alt_tab_pressed = ALTTAB_INACTIVE;
+
 uint16_t alt_tab_timer      = 0;
 uint16_t alt_tab_timeout    = 300;
 
@@ -267,28 +274,28 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_QWERTY] =
     {/*QWERTY*/
         {KC_TAB,   KC_Q,         KC_W,         KC_E,                   KC_R,         KC_T,         KC_Y,            KC_U,            KC_I,         KC_O,         KC_P,            KC_BSLS},
-        {KC_ESC,   LGUI_T(KC_A), RALT_T(KC_S), LCTL_T(KC_D),           LSFT_T(KC_F), KC_G,         KC_H,            RSFT_T(KC_J),    RCTL_T(KC_K), RALT_T(KC_L), RGUI_T(KC_SCLN), KC_QUOT},
+        {KC_ESC,   LGUI_T(KC_A), LALT_T(KC_S), LCTL_T(KC_D),           LSFT_T(KC_F), KC_G,         KC_H,            RSFT_T(KC_J),    RCTL_T(KC_K), RALT_T(KC_L), RGUI_T(KC_SCLN), KC_QUOT},
         {SHFT_KEY, KC_Z,         KC_X,         KC_C,                   KC_V,         KC_B,         KC_N,            KC_M,            KC_COMM,      KC_DOT,       KC_SLSH,         SHFT_KEY},
         {___x___,  ___x___,      ___x___,      LT(_FUNCTION, KC_BSPC), KC_SPC,       TAPALTTB,     TT(_NAVIGATION), TT(_SYMBOL),     KC_ENT,       ___x___,      ___x___,         ___x___}},
 
     [_SYMBOL] =
     {/*SYMBOL*/
         {KC_GRV,  KC_EXLM,      KC_AT,        KC_HASH,      KC_DLR,       KC_PERC,  KC_CIRC, KC_AMPR,      KC_ASTR,      KC_LPRN,      KC_RPRN,      KC_MINS},
-        {KC_ESC,  LGUI_T(KC_1), RALT_T(KC_2), LCTL_T(KC_3), LSFT_T(KC_4), KC_5,     KC_6,    RSFT_T(KC_7), RCTL_T(KC_8), RALT_T(KC_9), RGUI_T(KC_0), KC_EQL},
+        {KC_ESC,  LGUI_T(KC_1), LALT_T(KC_2), LCTL_T(KC_3), LSFT_T(KC_4), KC_5,     KC_6,    RSFT_T(KC_7), RCTL_T(KC_8), RALT_T(KC_9), RGUI_T(KC_0), KC_EQL},
         {_______, KC_BSLS,      KC_UNDS,      KC_PLUS,      KC_LCBR,      KC_RCBR,  KC_LBRC, KC_RBRC,      KC_COMM,      KC_DOT,       KC_SLSH,      _______},
         {___x___, ___x___,      ___x___,      KC_BSPC,      KC_SPC,       OVERVIEW, _______, _______,      KC_ENT,       ___x___,      ___x___,      ___x___}},
 
     [_NAVIGATION] =
     {/*NAVIGATION*/
         {KC_TAB,  ___x___,  ___x___,  ___x___,  ___x___,  ___x___,  KC_HOME,       KC_PGDN,       KC_PGUP,            KC_END,               ___x___, ___x___},
-        {KC_ESC,  KC_LGUI, KC_RALT, KC_LCTL, KC_LSFT, ___x___, KC_LEFT,       KC_DOWN,       KC_UP,              KC_RGHT,              ___x___, ___x___},
+        {KC_ESC,  KC_LGUI, KC_LALT, KC_LCTL, KC_LSFT, ___x___, KC_LEFT,       KC_DOWN,       KC_UP,              KC_RGHT,              ___x___, ___x___},
         {_______, ___x___,  ___x___,  ___x___,  ___x___,  ___x___,  LGUI(KC_LBRC), LGUI(KC_RBRC), LGUI(LSFT(KC_EQL)), LGUI(LSFT(KC_MINS)),  ___x___, _______},
         {___x___, ___x___,  ___x___,  KC_DEL,   KC_SPC,   OVERVIEW, _______,       _______,       KC_ENT,             ___x___,              ___x___, ___x___}},
 
     [_FUNCTION] =
     {/*FUNCTION*/
         {KC_TAB,  ___x___,       ___x___, ___x___, ___x___, ___x___, ___x___, ___x___, A_B_TEST,       ___x___, ___x___, ___x___},
-        {KC_ESC,  LGUI_T(KC_F1), RALT_T(KC_F2),          LCTL_T(KC_F3),          LSFT_T(KC_F4),     KC_F5,             KC_F6,                 RSFT_T(KC_F7),         RCTL_T(KC_F8), RALT_T(KC_F9), RGUI_T(KC_F10), ___x___},
+        {KC_ESC,  LGUI_T(KC_F1), LALT_T(KC_F2),          LCTL_T(KC_F3),          LSFT_T(KC_F4),     KC_F5,             KC_F6,                 RSFT_T(KC_F7),         RCTL_T(KC_F8), RALT_T(KC_F9), RGUI_T(KC_F10), ___x___},
         {_______, ___x___,       ___x___,                ___x___,                ___x___,           ___x___,           KC_F11,                KC_F12,                ___x___,       ___x___, TO(_SETTINGS), _______},
         {___x___, ___x___,       ___x___,                KC_DEL,                 KC_SPC,            OVERVIEW,          ___x___,               ___x___,               QK_BOOT,       ___x___, ___x___, ___x___}},
     [_SETTINGS] =
@@ -326,11 +333,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
         case TAPALTTB: // Improved on but inspired by: https://github.com/qmk/qmk_firmware/blob/master/keyboards/dz60/keymaps/_bonfire/not-in-use/super-alt-tab.c
             if (record->event.pressed) {
-                is_alt_tab_pressed = true;
+                is_alt_tab_pressed = ALTTAB_PRESSED;
                 register_code(KC_LALT);
                 tap_code(KC_TAB);
             } else {
-                is_alt_tab_pressed = false;
+                is_alt_tab_pressed = ALTTAB_WAITING;
                 alt_tab_timer      = timer_read();
             }
             return true;
@@ -431,9 +438,10 @@ void process_combo_event(uint16_t combo_index, bool pressed) {
 
 // This is currently only used for the TAPALTTB feature
 void matrix_scan_user(void) {
-    if (!is_alt_tab_pressed && timer_elapsed(alt_tab_timer) > alt_tab_timeout) {
+    if (is_alt_tab_pressed == ALTTAB_WAITING && timer_elapsed(alt_tab_timer) > alt_tab_timeout) {
         unregister_code(KC_LALT);
         alt_tab_timer = 0;
+        is_alt_tab_pressed = ALTTAB_INACTIVE;
     }
 }
 
@@ -456,7 +464,7 @@ bool oled_task_user(void) {
     else {
         switch (get_highest_layer(layer_state)) {
             case _QWERTY:
-                if (is_alt_tab_pressed || alt_tab_timer > 0) {
+                if (is_alt_tab_pressed == ALTTAB_PRESSED ||  alt_tab_timer > 0) {
                     oled_write_ln_P(PSTR("   Alt-Tab Active   "), true);
                 } else if ((host_keyboard_leds() & (1<<USB_LED_CAPS_LOCK))) {
                     oled_write_ln_P(PSTR("      Caps Lock     "), true);
