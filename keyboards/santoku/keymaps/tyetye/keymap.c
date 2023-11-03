@@ -219,7 +219,7 @@ float   acceleration_values[6]      = {0.6f, 0.8f, 1.0f, 1.2f, 1.4f, 1.6f};
 uint8_t linear_reduction_setting    = 2;
 float   linear_reduction_values[6]  = {2.4f, 2.2f, 2.0f, 1.8f, 1.6f, 1.4f};
 uint8_t drag_scroll_speed_setting   = 2;
-uint8_t drag_scroll_speed_values[6] = {8, 7, 6, 5, 4, 3};
+uint8_t drag_scroll_speed_values[6] = {16, 14, 12, 10, 8, 6};
 char *  progress_bars_x6[6]         = {"[=     ]", "[==    ]", "[===   ]", "[====  ]", "[===== ]", "[=PLAID]"};
 uint8_t scroll_wheel_test_setting   = 0;
 uint16_t mouse_rotation_angle       = 350;
@@ -534,6 +534,7 @@ bool oled_task_user(void) {
 
 void scale_mouse_vector_optimized(report_mouse_t *mouse_report);
 void rotate_mouse_coordinates_optimized(uint16_t angle, report_mouse_t *mouse_report);
+void scale_drag_scroll(report_mouse_t *mouse_report);
 
 // TODO: Move the speed and acceleration code into a separate function to make more modular
 // TODO: Move the drag scroll counter code into a separate function to make more modular
@@ -542,18 +543,7 @@ void rotate_mouse_coordinates_optimized(uint16_t angle, report_mouse_t *mouse_re
 void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     scale_mouse_vector_optimized(mouse_report);
     rotate_mouse_coordinates_optimized(mouse_rotation_angle, mouse_report);
-
-    // Drag scrolling with the Trackpoint is reported so often that it makes the feature unusable without slowing it down.
-    // The below code only reports when the counter is evenly divisible by the chosen integer speed.
-    // Skipping reports is technically, probably, not ideal. I'd like to find a way to send a slower speed without skipping.
-    // As is, however, it works well and is user configurable from the Options screen.
-    // TODO: Break out into dedicated function
-    static uint16_t drag_scroll_counter = 0;
-    drag_scroll_counter == 40320 ? drag_scroll_counter = 0 : drag_scroll_counter++ ; // Because 8!==40320 (allows clean mod divisibility and avoids scrolling surge when resetting to 0)
-    if ((mouse_report->v != 0 || mouse_report->h != 0) && drag_scroll_counter % drag_scroll_speed_values[drag_scroll_speed_setting] != 0) {
-        mouse_report->v = 0;
-        mouse_report->h = 0;
-    }
+    scale_drag_scroll(mouse_report);
 }
 
 // Fast approximation for square root
@@ -629,6 +619,24 @@ void rotate_mouse_coordinates_optimized(uint16_t angle, report_mouse_t *mouse_re
     mouse_report->y = round(precomputed_sine * cached_mouse_x + precomputed_cosine * cached_mouse_y);
 }
 
+void scale_drag_scroll(report_mouse_t *mouse_report) {
+    static int16_t scroll_v, scroll_h;
+    int16_t scroll_speed = drag_scroll_speed_values[drag_scroll_speed_setting];
+
+    // Reset on movement
+    if (mouse_report->x || mouse_report->y) {
+        scroll_v = 0;
+        scroll_h = 0;
+        return;
+    }
+
+    scroll_v += mouse_report->v;
+    scroll_h += mouse_report->h;
+    mouse_report->v = scroll_v / scroll_speed;
+    mouse_report->h = scroll_h / scroll_speed;
+    scroll_v -= (mouse_report->v * scroll_speed);
+    scroll_h -= (mouse_report->h * scroll_speed);
+}
 
 
 /* void scale_mouse_vector(report_mouse_t *mouse_report) { */

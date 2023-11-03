@@ -32,6 +32,9 @@
 // defines for making the Trackpoint more fluid
 #define PS2_MOUSE_USE_REMOTE_MODE
 
+#define PS2_MOUSE_SCROLL_DIVISOR_V 1 /* Scale again in keymap */
+#define PS2_MOUSE_SCROLL_DIVISOR_H 1 /* Scale again in keymap */
+
 // defines for tuning the OLED
 #define OLED_TIMEOUT 15000
 #define OLED_UPDATE_INTERVAL 100
