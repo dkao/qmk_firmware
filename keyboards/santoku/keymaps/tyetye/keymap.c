@@ -556,9 +556,8 @@ void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     }
 }
 
-inline float fast_approximate_square_root(float input_number);
 // Fast approximation for square root
-inline float fast_approximate_square_root(float input_number) {
+static inline float fast_approximate_square_root(float input_number) {
     long bit_representation;
     float half_input, approximate_result;
     const float constant_for_approximation = 1.5F;
@@ -573,9 +572,8 @@ inline float fast_approximate_square_root(float input_number) {
     return 1 / approximate_result;
 }
 
-inline float fast_approximate_power(float base_value, float exponent_value);
 // Fast approximation for power function
-inline float fast_approximate_power(float base_value, float exponent_value) {
+static inline float fast_approximate_power(float base_value, float exponent_value) {
     union {
         float float_value;
         int int_value;
