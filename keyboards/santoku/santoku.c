@@ -16,7 +16,6 @@
 
 #include "santoku.h"
 
-#if 1
 #ifdef ENCODER_ENABLE
 bool encoder_update_kb(uint8_t index, bool clockwise) {
     if (!encoder_update_user(index, clockwise)) { return false; }
@@ -35,14 +34,13 @@ bool encoder_update_kb(uint8_t index, bool clockwise) {
 			currentReport.v = step_values[9] * (clockwise ? 1.0 : -1.0);
 		}
 		else {
-			currentReport.v = step_values[ timer_difference / 20] * (clockwise ? 1.0 : -1.0);
+			currentReport.v = step_values[ timer_difference / 20] * (clockwise ? 1.0 : -1.0); 
 		}
     pointing_device_set_report(currentReport);
     pointing_device_send();
 	encoder_timer = timer_read();
     return true;
 }
-#endif
 
 /*
 bool encoder_update_user(uint8_t index, bool clockwise) {
