@@ -25,6 +25,7 @@ enum layer_names {
 
 #define CTL_ESC LCTL_T(KC_ESC)
 #define GUI_QUO LGUI_T(KC_QUOT)
+#define ALT_BSL RALT_T(KC_BSLS)
 #define SHF_TAB LSFT_T(KC_TAB)
 #define SHF_SPC LSFT_T(KC_SPC)
 #define SHF_ENT RSFT_T(KC_ENT)
@@ -41,7 +42,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         //KC_LALT, KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,    KC_K,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
         KC_TAB,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,    KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_BSPC,
         CTL_ESC, KC_A,    KC_R,    KC_S,    KC_T,    KC_G,    KC_M,    KC_N,    KC_E,    KC_I,    KC_O,    GUI_QUO,
-        KC_LALT, KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,    KC_K,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
+        KC_LALT, KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,    KC_K,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, ALT_BSL,
+        //KC_LALT, KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,    KC_K,    KC_H,    KC_COMM, KC_DOT,  KC_SLSH, KC_BSLS,
         //KC_CAPS, KC_LCTL, KC_LALT, KC_LGUI, KC_SPC,  MO(1),   MO(2),   KC_SPC,  KC_UP,   KC_LEFT, KC_DOWN, KC_RGHT
         //KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,    KC_GRV,  KC_QUOT, KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN,
         //KC_A,    KC_R,    KC_S,    KC_T,    KC_G,    KC_MINS, KC_EQL,  KC_M,    KC_N,    KC_E,    KC_I,    KC_O,
