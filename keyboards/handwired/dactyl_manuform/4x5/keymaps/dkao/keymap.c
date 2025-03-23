@@ -322,7 +322,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 #else
     [_RAISE] = LAYOUT_fix(
-        _______, _______, KC_MU,   _______, _______,                                      KC_VOLU, KC_HOME, KC_UP,   KC_END,  KC_PGUP,
+        KC_PSCR, _______, KC_MU,   _______, KC_INS,                                       KC_VOLU, KC_HOME, KC_UP,   KC_END,  KC_PGUP,
         KC_F24,  KC_ML,   KC_MD,   KC_MR,   KC_BTN3,                                      KC_MUTE, KC_LEFT, KC_DOWN, KC_RGHT, KC_PGDN,
         KC_BTN4, KC_BTN5, KC_F24,  KC_BTN1, KC_BTN2,                                      KC_VOLD, KC_SLSH, KC_BSLS, KC_QUES, KC_PIPE,
                  KC_WH_U, KC_WH_D,                                                                          KC_BTN1, KC_BTN2,
