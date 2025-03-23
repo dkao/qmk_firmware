@@ -443,10 +443,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
      *                                    '------+------' '------+------'
      */
     [_FPS2] = LAYOUT_fix(
-        KC_TAB,  KC_Q,    KC_W,    KC_T,    KC_Y,                                         RETB,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        KC_LSFT, KC_A,    KC_S,    KC_D,    KC_G,                                         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        KC_TRNS, KC_Z,    KC_X,    KC_C,    KC_B,                                         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-                 KC_LCTL, KC_LALT,                                                                          XXXXXXX, XXXXXXX,
+        KC_TAB,  KC_Q,    KC_W,    KC_T,    KC_Y,                                         RETB,    KC_U,    KC_I,    KC_O,    KC_P,
+        KC_LSFT, KC_A,    KC_S,    KC_D,    KC_G,                                         KC_SCLN, KC_H,    KC_J,    KC_K,    KC_L,
+        KC_TRNS, KC_Z,    KC_X,    KC_C,    KC_B,                                         KC_SLSH, KC_N,    KC_M,    KC_COMM, KC_DOT,
+                 KC_LCTL, KC_LALT,                                                                          KC_GRV,  XXXXXXX,
                                    KC_9,    KC_0,                                         XXXXXXX, XXXXXXX,
                                                      KC_5,    KC_7,     XXXXXXX, XXXXXXX,
                                                      KC_6,    KC_8,     XXXXXXX, XXXXXXX
