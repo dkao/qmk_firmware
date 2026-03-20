@@ -405,6 +405,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return true;
 
+#if 0
         case TAPALTTB: // Improved on but inspired by: https://github.com/qmk/qmk_firmware/blob/master/keyboards/dz60/keymaps/_bonfire/not-in-use/super-alt-tab.c
             if (record->event.pressed) {
                 is_alt_tab_pressed = ALTTAB_PRESSED;
@@ -415,6 +416,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 alt_tab_timer      = timer_read();
             }
             return true;
+#endif
 
         case SETTINGS_UP:
         case SETTINGS_DOWN:
@@ -512,6 +514,7 @@ void process_combo_event(uint16_t combo_index, bool pressed) {
 }
 #endif
 
+#if 0
 // This is currently only used for the TAPALTTB feature
 void matrix_scan_user(void) {
     if (is_alt_tab_pressed == ALTTAB_WAITING && timer_elapsed(alt_tab_timer) > alt_tab_timeout) {
@@ -520,6 +523,7 @@ void matrix_scan_user(void) {
         is_alt_tab_pressed = ALTTAB_INACTIVE;
     }
 }
+#endif
 
 #ifdef OLED_ENABLE
 bool oled_task_user(void) {
@@ -546,6 +550,7 @@ bool oled_task_user(void) {
         //switch (get_highest_layer(layer_state)) {
         switch (current_layer) {
             case _QWERTY:
+#if 0
                 if (is_alt_tab_pressed == ALTTAB_PRESSED ||  alt_tab_timer > 0) {
                     oled_write_ln_P(PSTR("   Alt-Tab Active   "), true);
                     status = 1;
@@ -553,6 +558,9 @@ bool oled_task_user(void) {
                     oled_write_ln_P(PSTR("      Caps Lock     "), true);
                     status = 2;
                 } else if ( is_caps_word_on() ) {
+#else
+                if ( is_caps_word_on() ) {
+#endif
                     oled_write_ln_P(PSTR("      Caps Word     "), true);
                     status = 3;
                 } else {
@@ -704,8 +712,8 @@ void scale_drag_scroll(report_mouse_t *mouse_report);
 void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
     scale_mouse_vector_optimized(mouse_report);
     rotate_mouse_coordinates_optimized(mouse_rotation_angle, mouse_report);
-
     scale_drag_scroll(mouse_report);
+
 #if 0 // reimplement PS2 dragscroll with runtime equivalent of PS2_MOUSE_SCROLL_DIVISOR_V/H instead
     // Drag scrolling with the Trackpoint is reported so often that it makes the feature unusable without slowing it down.
     // The below code only reports when the counter is evenly divisible by the chosen integer speed.
@@ -721,6 +729,7 @@ void ps2_mouse_moved_user(report_mouse_t *mouse_report) {
 #endif
 }
 
+#if 1
 // Fast approximation for square root
 static inline float fast_approximate_square_root(float input_number) {
     long bit_representation;
@@ -741,30 +750,53 @@ static inline float fast_approximate_square_root(float input_number) {
 static inline float fast_approximate_power(float base_value, float exponent_value) {
     union {
         float float_value;
-        int int_value;
+        //int int_value;
+        int32_t int_value;
     } union_representation = { base_value };
 
-    union_representation.int_value = (int)(exponent_value * (union_representation.int_value - 1064866805) + 1064866805);
+    union_representation.int_value = (int32_t)(exponent_value * (union_representation.int_value - 1064866805) + 1064866805);
 
     return union_representation.float_value;
 }
+#endif
 
 void scale_mouse_vector_optimized(report_mouse_t *mouse_report) {
+    static float carry_x, carry_y;
+
+    if (mouse_report->x == 0 && mouse_report->y == 0) {
+        return;
+    }
     // Convert integers to float for calculations
     float x = (float)mouse_report->x;
     float y = (float)mouse_report->y;
 
     // Using fast square root and power approximations
-    float hypotenuse = fast_approximate_square_root(x * x + y * y);
-    float scaled_hypotenuse = fast_approximate_power(hypotenuse, acceleration_values[acceleration_setting]) / linear_reduction_values[linear_reduction_setting];
+    //float hypotenuse = fast_approximate_square_root(x * x + y * y);
+    //float hypotenuse = hypotf(x, y);
+    float hypotenuse = sqrtf(x * x + y * y);
+    //float scaled_hypotenuse = fast_approximate_power(hypotenuse, acceleration_values[acceleration_setting]) / linear_reduction_values[linear_reduction_setting];
+    //float scaled_hypotenuse = fast_approximate_power(hypotenuse * linear_reduction_values[linear_reduction_setting], acceleration_values[acceleration_setting]);
+    float scaled_hypotenuse = powf(hypotenuse * linear_reduction_values[linear_reduction_setting], acceleration_values[acceleration_setting]);
 
     // Eliminating redundant trigonometric calculations
     float cos_angle = x / hypotenuse;
     float sin_angle = y / hypotenuse;
 
+#if 0
     // Convert float back to integer with rounding
     mouse_report->x += (int)(scaled_hypotenuse * cos_angle + 0.5);
     mouse_report->y += (int)(scaled_hypotenuse * sin_angle + 0.5);
+#else
+    carry_x += (scaled_hypotenuse * cos_angle);
+    carry_y += (scaled_hypotenuse * sin_angle);
+
+    //mouse_report->x = (mouse_xy_report_t)(carry_x + 0.5);
+    //mouse_report->y = (mouse_xy_report_t)(carry_y + 0.5);
+    mouse_report->x = (mouse_xy_report_t)(carry_x);
+    mouse_report->y = (mouse_xy_report_t)(carry_y);
+    carry_x -= mouse_report->x;
+    carry_y -= mouse_report->y;
+#endif
 }
 
 

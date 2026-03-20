@@ -1,0 +1,5 @@
+#pragma once
+
+#define PERMISSIVE_HOLD
+#define HOLD_ON_OTHER_KEY_PRESS_PER_KEY
+#define QUICK_TAP_TERM_PER_KEY

@@ -1,0 +1,10 @@
+{
+    "keyboard_name": "Morse", 
+    "url": "https://github.com/dcpedit/morse", 
+    "maintainer": "ddpedit", 
+    "layouts": {
+        "LAYOUT": {
+            "layout": [{"label":"A", "x":0, "y":0, "w":2, "h":2}, {"label":"B", "x":2, "y":0, "w":2, "h":2}]
+        }
+    }
+}
